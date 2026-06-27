@@ -6,8 +6,9 @@ name: Push snapshot
 
 on:
   schedule:
-    # Every 15 minutes (UTC). GitHub may delay scheduled runs under load.
-    - cron: "*/15 * * * *"
+    # Every 5 minutes (GitHub's minimum) to keep live scores as fresh as the
+    # data sources allow. GitHub may still delay runs a little under load.
+    - cron: "*/5 * * * *"
   workflow_dispatch: {} # adds a manual "Run workflow" button
 
 # Never let two pushes overlap.
@@ -20,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
