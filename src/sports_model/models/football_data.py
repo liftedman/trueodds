@@ -19,8 +19,11 @@ import requests
 from .. import config
 
 _BASE = "https://api.football-data.org/v4/competitions/{code}/matches"
-_UPCOMING = "TIMED,SCHEDULED,IN_PLAY,PAUSED"  # everything except finished
-_LIVE = {"IN_PLAY", "PAUSED"}
+# Everything except finished. Includes LIVE — football-data.org sometimes
+# reports an in-progress match as "LIVE" rather than "IN_PLAY"; omitting it made
+# live matches vanish from the fetch entirely.
+_UPCOMING = "TIMED,SCHEDULED,IN_PLAY,PAUSED,LIVE"
+_LIVE = {"IN_PLAY", "PAUSED", "LIVE"}
 _TIMEOUT = 30
 
 # football-data.org national-team name -> our Elo (martj42) name.
