@@ -1,0 +1,49 @@
+name: sports_model_app
+description: Honest multi-sport predictions — clubs, World Cup, NBA, tennis, UCL.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  shared_preferences: ^2.2.0
+  url_launcher: ^6.2.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+
+# Launcher icons — regenerate with:  dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "assets/icon/background.png"
+  adaptive_icon_foreground: "assets/icon/foreground.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#0EA5A4"
+    theme_color: "#0EA5A4"
+
+# Native (OS-level) splash — regenerate with:  dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0EA5A4"
+  image: assets/icon/splash.png
+  color_dark: "#0B1220"
+  image_dark: assets/icon/splash.png
+  android_12:
+    image: assets/icon/splash.png
+    icon_background_color: "#0EA5A4"
+    color: "#0EA5A4"
+    color_dark: "#0B1220"
+    icon_background_color_dark: "#0B1220"

@@ -1,0 +1,183 @@
+import 'package:flutter/material.dart';
+import 'brand.dart';
+import 'favorites.dart';
+import 'match_detail.dart';
+import 'team_avatar.dart';
+import 'theme.dart';
+
+/// The "Today" feed — live + upcoming matches aggregated across every sport.
+class TodayScreen extends StatelessWidget {
+  final Map data;
+  final Future<void> Function() onRefresh;
+  const TodayScreen(this.data, this.onRefresh, {super.key});
+
+  List<Map> _collect() {
+    final out = <Map>[];
+    void add(String key, List? fx) {
+      for (final f in (fx ?? const [])) out.add({'key': key, 'fx': f as Map});
+    }
+    (data['leagues'] as Map?)?.forEach((_, lg) => add('clubs', lg['fixtures'] as List?));
+    add('wc', (data['wc'] as Map?)?['fixtures'] as List?);
+    add('cl', (data['cl'] as Map?)?['fixtures'] as List?);
+    add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final all = _collect();
+    final live = all.where((e) => e['fx']['live'] == true).toList();
+    final upcoming = all.where((e) => e['fx']['live'] != true).toList()
+      ..sort((a, b) => '${a['fx']['date']} ${a['fx']['time']}'
+          .compareTo('${b['fx']['date']} ${b['fx']['time']}'));
+    final muted = Theme.of(context).colorScheme.onSurface.withOpacity(.6);
+
+    return ListenableBuilder(
+      listenable: favorites,
+      builder: (context, _) {
+        final mine = all
+            .where((e) =>
+                favorites.contains(e['fx']['home']) ||
+                favorites.contains(e['fx']['away']))
+            .toList();
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+            children: [
+              const Text('Today',
+                  style: TextStyle(
+                      fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5)),
+              Text('Live & upcoming across every sport',
+                  style: TextStyle(color: muted)),
+              const SizedBox(height: 16),
+              if (mine.isNotEmpty) ...[
+                _sectionLabel(context, '★ Your teams', const Color(0xFFE8A33D)),
+                ...mine.map((e) => _MatchTile(data, e['key'], e['fx'])),
+                const SizedBox(height: 16),
+              ],
+              if (live.isNotEmpty) ...[
+                _sectionLabel(context, '● Live now', const Color(0xFFE5484D)),
+                ...live.map((e) => _MatchTile(data, e['key'], e['fx'])),
+                const SizedBox(height: 16),
+              ],
+              if (upcoming.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                      child: Text('No matches scheduled right now.',
+                          style: TextStyle(color: muted))),
+                )
+              else
+                ..._groupedUpcoming(context, upcoming, muted),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Upcoming matches split into date sections (Today / Tomorrow / Sat 28 Jun…).
+  List<Widget> _groupedUpcoming(
+      BuildContext context, List<Map> upcoming, Color muted) {
+    final groups = <String, List<Map>>{};
+    for (final e in upcoming.take(40)) {
+      (groups[e['fx']['date'] as String? ?? ''] ??= []).add(e);
+    }
+    final out = <Widget>[];
+    for (final entry in groups.entries) {
+      out.add(_sectionLabel(context, _dateLabel(entry.key), muted));
+      out.addAll(entry.value.map((e) => _MatchTile(data, e['key'], e['fx'])));
+      out.add(const SizedBox(height: 18));
+    }
+    return out;
+  }
+
+  String _dateLabel(String ymd) {
+    final d = DateTime.tryParse(ymd);
+    if (d == null) return ymd.isEmpty ? 'Scheduled' : ymd;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(d.year, d.month, d.day);
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Tomorrow';
+    const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+        'Oct', 'Nov', 'Dec'];
+    return '${wd[day.weekday - 1]} ${day.day} ${mo[day.month - 1]}';
+  }
+
+  Widget _sectionLabel(BuildContext c, String t, Color color) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(t.toUpperCase(),
+            style: TextStyle(
+                fontSize: 11, letterSpacing: 1.3, fontWeight: FontWeight.w700, color: color)),
+      );
+}
+
+class _MatchTile extends StatelessWidget {
+  final Map data;
+  final String sportKey;
+  final Map f;
+  const _MatchTile(this.data, this.sportKey, this.f);
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppTheme.sportAccent[sportKey] ?? kBrand;
+    final live = f['live'] == true;
+    final muted = Theme.of(context).colorScheme.onSurface.withOpacity(.6);
+    // Favourite outcome text.
+    String favLabel;
+    double favVal;
+    if (f.containsKey('home_win')) {
+      final hw = (f['home_win'] as num).toDouble();
+      final aw = (f['away_win'] as num).toDouble();
+      favLabel = hw >= aw ? '${f['home']}' : '${f['away']}';
+      favVal = hw >= aw ? hw : aw;
+    } else {
+      final h = (f['h'] as num).toDouble();
+      final d = (f['d'] as num).toDouble();
+      final a = (f['a'] as num).toDouble();
+      final m = [h, d, a].reduce((x, y) => x > y ? x : y);
+      favLabel = m == h ? '${f['home']}' : (m == a ? '${f['away']}' : 'Draw');
+      favVal = m;
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => MatchDetailScreen(
+                data: data,
+                sportKey: sportKey,
+                home: f['home'] as String,
+                away: f['away'] as String,
+                fixture: f))),
+        leading: DuoAvatar(f['home'] as String, f['away'] as String),
+        title: Text('${f['home']}  v  ${f['away']}',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: live
+            ? Text('● LIVE${f['score'] != null ? '  ${f['score']}' : ''}',
+                style: const TextStyle(
+                    color: Color(0xFFE5484D), fontWeight: FontWeight.w700, fontSize: 12))
+            : Text('${f['date']}  ·  ${f['time']}', style: TextStyle(color: muted)),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text('${(favVal * 100).round()}%',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, color: accent, fontSize: 16)),
+            SizedBox(
+                width: 96,
+                child: Text(favLabel,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: muted))),
+          ],
+        ),
+      ),
+    );
+  }
+}

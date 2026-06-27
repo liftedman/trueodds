@@ -1,0 +1,39 @@
+# Virtual environment
+.venv/
+venv/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+
+# Environment / secrets
+.env
+
+# Data (downloaded / generated — re-creatable from ingest scripts)
+data/raw/
+data/processed/
+data/*.db
+# ...but keep the main DB tracked so the cloud push job has ratings to work from.
+!data/sports.db
+.ipynb_checkpoints/
+
+# Flutter build artifacts
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

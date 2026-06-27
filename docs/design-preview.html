@@ -1,0 +1,165 @@
+<div id="app" data-theme="dark" data-sport="clubs">
+<style>
+  #app {
+    --ground:#0E1117; --surface:#171C24; --text:#E9EDF3; --muted:#8B95A4; --line:#242B35;
+    --accent:#16B364; --accent-ink:#04130B;
+    --hi:#16B364; --med:#E8A33D; --lo:#8B95A4;
+    --sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono","Consolas",monospace;
+    --shadow:none; --glow:color-mix(in srgb, var(--accent) 40%, transparent);
+    --tint:color-mix(in srgb, var(--accent) 14%, var(--surface));
+    background:
+      radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%),
+      var(--ground);
+    color:var(--text); font-family:var(--sans);
+    line-height:1.5; padding:clamp(20px,4vw,48px); max-width:1000px; margin:0 auto;
+    min-height:100vh; transition:background .3s,color .25s;
+  }
+  #app[data-theme="light"]{ --ground:#F6F7F9; --surface:#FFFFFF; --text:#131722; --muted:#5A6472; --line:#E4E8EE;
+    --shadow:0 1px 2px rgba(16,22,30,.06), 0 10px 30px rgba(16,22,30,.06); }
+  #app[data-sport="clubs"] { --accent:#16B364; --accent-ink:#04130B; }
+  #app[data-sport="wc"]    { --accent:#2E7DF6; --accent-ink:#FFFFFF; }
+  #app[data-sport="nba"]   { --accent:#8B5CF6; --accent-ink:#FFFFFF; }
+  #app[data-sport="tennis"]{ --accent:#84CC16; --accent-ink:#10210A; }
+  #app[data-sport="ucl"]   { --accent:#E5484D; --accent-ink:#FFFFFF; }
+  * { box-sizing:border-box; }
+  .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
+  h1{ font-size:clamp(28px,5vw,40px); font-weight:800; letter-spacing:-.02em; margin:0 0 6px; }
+  .sub{ color:var(--muted); margin:0 0 22px; }
+  .topbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .pills{ display:flex; flex-wrap:wrap; gap:6px; }
+  .pill{ border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px;
+         padding:7px 14px; font-family:var(--sans); font-size:13px; font-weight:600; cursor:pointer;
+         transition:background .2s,color .2s,border-color .2s,box-shadow .2s,transform .12s; }
+  .pill:hover{ color:var(--text); border-color:var(--muted); transform:translateY(-1px); }
+  .pill[aria-selected="true"]{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
+         box-shadow:0 4px 16px var(--glow); }
+  button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .toggle{ border:1px solid var(--line); background:var(--surface); color:var(--text); border-radius:999px;
+           padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:border-color .2s; }
+  .toggle:hover{ border-color:var(--accent); }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px;
+         margin-top:18px; box-shadow:var(--shadow);
+         transition:transform .2s,box-shadow .2s,border-color .25s,background .25s; }
+  .card:hover{ transform:translateY(-2px); border-color:color-mix(in srgb, var(--accent) 30%, var(--line)); }
+  .card.hero{ position:relative; overflow:hidden; }
+  .card.hero::before{ content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--accent); }
+  .label{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 14px; }
+  .match{ display:flex; align-items:center; justify-content:center; gap:16px; font-weight:800; font-size:clamp(17px,3vw,22px); margin-bottom:8px; }
+  .match .vs{ font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:400; }
+  .match .t{ flex:1; } .match .h{ text-align:right; } .match .a{ text-align:left; }
+  .badge{ display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:.1em; padding:3px 9px; border-radius:999px; font-weight:700; }
+  .badge.hi{ background:var(--hi); color:#04130B; } .badge.med{ background:var(--med); color:#231603; } .badge.lo{ background:var(--lo); color:#0c0f14; }
+  .bars{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+  .row{ display:grid; grid-template-columns:84px 1fr 52px; gap:12px; align-items:center; }
+  .row .n{ font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .track{ background:var(--ground); border:1px solid var(--line); border-radius:6px; height:22px; overflow:hidden; }
+  .fill{ height:100%; background:var(--accent); border-radius:5px 0 0 5px;
+         box-shadow:0 0 14px var(--glow); transition:width .6s cubic-bezier(.2,.8,.2,1),background .25s,box-shadow .25s; }
+  .fill.d{ opacity:.55; box-shadow:none; } .fill.a{ opacity:.32; box-shadow:none; }
+  .pct{ font-family:var(--mono); font-size:15px; text-align:right; } .pct.lead{ color:var(--accent); font-weight:700; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-top:14px; border-top:1px dashed var(--line); }
+  .chip{ display:flex; flex-direction:column; gap:2px; padding:7px 11px; background:var(--ground); border:1px solid var(--line); border-radius:8px; min-width:74px; }
+  .chip .cn{ font-family:var(--mono); font-size:10px; color:var(--muted); }
+  .chip .cv{ font-family:var(--mono); font-size:15px; }
+  .chip{ transition:background .25s,border-color .25s; }
+  .chip.hot{ border-color:var(--accent); background:var(--tint); } .chip.hot .cv{ color:var(--accent); }
+  .fix{ display:grid; grid-template-columns:70px 1fr auto; gap:12px; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); }
+  .fix .d{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .fix .tm{ font-weight:600; font-size:14px; }
+  .live{ color:#E5484D; font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.08em; margin-left:8px; animation:pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+  .o{ display:flex; gap:4px; font-family:var(--mono); font-size:11px; }
+  .o span{ padding:3px 7px; border-radius:5px; background:var(--ground); border:1px solid var(--line); color:var(--muted); min-width:40px; text-align:center; }
+  .o span.w{ border-color:var(--accent); color:var(--accent); }
+  .swatches{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+  .sw{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .sw .chip2{ height:46px; } .sw .meta{ padding:7px 9px; font-family:var(--mono); font-size:10px; color:var(--muted); }
+  .type div{ margin:4px 0; }
+  @media (prefers-reduced-motion:reduce){ .fill,#app{transition:none} .live{animation:none} }
+</style>
+
+<p class="eyebrow" id="eb">sports-model · design system</p>
+<div class="topbar">
+  <div>
+    <h1>One language, five sports<span style="color:var(--accent)">.</span></h1>
+    <p class="sub">Neutral base · per-sport accent · light & dark. Switch a sport or the theme to see it adapt.</p>
+  </div>
+  <button class="toggle" id="themeBtn" type="button">☀ Light</button>
+</div>
+
+<div class="pills" id="pills" role="tablist" aria-label="Sport">
+  <button class="pill" role="tab" data-s="clubs" aria-selected="true" type="button">⚽ Clubs</button>
+  <button class="pill" role="tab" data-s="wc" type="button">🏆 World Cup</button>
+  <button class="pill" role="tab" data-s="nba" type="button">🏀 NBA</button>
+  <button class="pill" role="tab" data-s="tennis" type="button">🎾 Tennis</button>
+  <button class="pill" role="tab" data-s="ucl" type="button">⭐ UCL</button>
+</div>
+
+<div class="card hero">
+  <p class="label">Predictor card &nbsp;·&nbsp; <span class="badge hi" id="conf">High confidence</span></p>
+  <div class="match"><span class="t h" id="ha">Arsenal</span><span class="vs">VS</span><span class="t a" id="aw">Chelsea</span></div>
+  <div class="bars">
+    <div class="row"><span class="n" id="hn">Arsenal</span><div class="track"><div class="fill" style="width:56%"></div></div><span class="pct lead">56%</span></div>
+    <div class="row"><span class="n">Draw</span><div class="track"><div class="fill d" style="width:22%"></div></div><span class="pct">22%</span></div>
+    <div class="row"><span class="n" id="an">Chelsea</span><div class="track"><div class="fill a" style="width:22%"></div></div><span class="pct">22%</span></div>
+  </div>
+  <div class="chips">
+    <div class="chip hot"><span class="cn">Over 0.5</span><span class="cv">95%</span></div>
+    <div class="chip hot"><span class="cn">Over 1.5</span><span class="cv">81%</span></div>
+    <div class="chip"><span class="cn">Over 2.5</span><span class="cv">59%</span></div>
+    <div class="chip"><span class="cn">BTTS</span><span class="cv">58%</span></div>
+    <div class="chip hot"><span class="cn">Double 1X</span><span class="cv">78%</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="label">Fixtures</p>
+  <div class="fix"><span class="d">Today<br>23:00</span><span class="tm" id="f1">Morocco <span style="color:var(--muted)">v</span> Haiti<span class="live">● LIVE 1-0</span></span>
+    <span class="o"><span class="w">78%</span><span>14%</span><span>8%</span></span></div>
+  <div class="fix"><span class="d">Tomorrow<br>20:00</span><span class="tm" id="f2">Scotland <span style="color:var(--muted)">v</span> Brazil</span>
+    <span class="o"><span>16%</span><span>20%</span><span class="w">64%</span></span></div>
+</div>
+
+<div class="card">
+  <p class="label">Palette — neutral foundation + this sport's accent</p>
+  <div class="swatches">
+    <div class="sw"><div class="chip2" style="background:var(--ground)"></div><div class="meta">ground</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--surface)"></div><div class="meta">surface</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--text)"></div><div class="meta">text</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--accent)"></div><div class="meta" id="acHex">accent</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--hi)"></div><div class="meta">confidence · high</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--med)"></div><div class="meta">confidence · med</div></div>
+    <div class="sw"><div class="chip2" style="background:var(--lo)"></div><div class="meta">confidence · low</div></div>
+  </div>
+</div>
+
+<div class="card type">
+  <p class="label">Typography</p>
+  <div style="font-size:34px;font-weight:800;letter-spacing:-.02em">Display 34 — Watch the model think</div>
+  <div style="font-size:20px;font-weight:700">Heading 20 — World Cup predictor</div>
+  <div style="font-size:15px">Body 15 — Pick two teams and see honest probabilities.</div>
+  <div style="font-family:var(--mono);font-size:15px">Mono 15 — 56% · 1.92–1.13 · 2-1 9.9%</div>
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Caption 11 — expected goals</div>
+</div>
+
+<script>
+  const app=document.getElementById("app");
+  const accents={clubs:"#16B364",wc:"#2E7DF6",nba:"#8B5CF6",tennis:"#84CC16",ucl:"#E5484D"};
+  document.getElementById("themeBtn").addEventListener("click",function(){
+    const dark=app.getAttribute("data-theme")==="dark";
+    app.setAttribute("data-theme",dark?"light":"dark");
+    this.textContent=dark?"🌙 Dark":"☀ Light";
+  });
+  function setAcHex(s){ document.getElementById("acHex").textContent="accent "+accents[s]; }
+  document.querySelectorAll("#pills .pill").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#pills .pill").forEach(x=>x.setAttribute("aria-selected","false"));
+      b.setAttribute("aria-selected","true");
+      app.setAttribute("data-sport",b.dataset.s);
+      setAcHex(b.dataset.s);
+    });
+  });
+  setAcHex("clubs");
+</script>
+</div>

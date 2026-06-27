@@ -1,0 +1,38 @@
+name: Push snapshot
+
+# Keeps the app fresh: rebuilds the prediction snapshot (ratings + live
+# fixtures/scores + news) and pushes it to Supabase on a schedule. The app's
+# 60s auto-refresh then picks up the new data automatically.
+
+on:
+  schedule:
+    # Every 15 minutes (UTC). GitHub may delay scheduled runs under load.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {} # adds a manual "Run workflow" button
+
+# Never let two pushes overlap.
+concurrency:
+  group: push-snapshot
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Build & push snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+        run: python -m sports_model.main push
