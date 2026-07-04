@@ -108,6 +108,7 @@ def _build_data() -> dict:
         "cl": _build_cl_data(),
         "news": _safe_news(),
         "receipts": _safe_receipts(),
+        "results": _safe_results(),
     }
 
 
@@ -126,6 +127,15 @@ def _safe_receipts() -> dict | None:
         return evaluate.build_receipts()
     except Exception:
         return None
+
+
+def _safe_results() -> list[dict]:
+    """Recently finished matches for grading user picks; never fatal."""
+    try:
+        from .models import football_data
+        return football_data.recent_results()
+    except Exception:
+        return []
 
 
 def _count_rates(code: str, seasons: list[str]) -> dict[str, dict]:

@@ -171,6 +171,46 @@ class Predict {
     return _grid(max(0.12, (total + sup) / 2), max(0.12, (total - sup) / 2));
   }
 
+  /// In-play result probabilities: given the pre-match expected goals [lh]/[la],
+  /// the current score, and minutes played, project the FINAL result. Remaining
+  /// goals follow Poisson over the fraction of the match still to play — so as
+  /// time runs down with a lead, the leader's probability firms toward certainty.
+  static ({double home, double draw, double away}) inPlay(
+      double lh, double la, int homeGoals, int awayGoals, int minute) {
+    final remaining = (90 - minute).clamp(0, 90) / 90.0;
+    final rlh = lh * remaining, rla = la * remaining; // expected remaining goals
+    const maxG = 10;
+    final ph = [for (var k = 0; k <= maxG; k++) _pois(k, rlh)];
+    final pa = [for (var k = 0; k <= maxG; k++) _pois(k, rla)];
+    double h = 0, d = 0, a = 0, sum = 0;
+    for (var i = 0; i <= maxG; i++) {
+      for (var j = 0; j <= maxG; j++) {
+        final p = ph[i] * pa[j];
+        sum += p;
+        final fh = homeGoals + i, fa = awayGoals + j;
+        if (fh > fa) {
+          h += p;
+        } else if (fh == fa) {
+          d += p;
+        } else {
+          a += p;
+        }
+      }
+    }
+    return (home: h / sum, draw: d / sum, away: a / sum);
+  }
+
+  /// P(home win) sampled from [fromMinute] to full time (holding the current
+  /// score) — the forward curve that visualises how the result firms up.
+  static List<double> inPlayHomeCurve(
+      double lh, double la, int homeGoals, int awayGoals, int fromMinute) {
+    final pts = <double>[];
+    for (var m = fromMinute.clamp(0, 90); m <= 90; m += 5) {
+      pts.add(inPlay(lh, la, homeGoals, awayGoals, m).home);
+    }
+    return pts;
+  }
+
   /// NBA — win probability + projected score.
   static ({double homeWin, double awayWin, double projHome, double projAway})
       nba(Map nba, double eloH, double eloA, bool neutral,

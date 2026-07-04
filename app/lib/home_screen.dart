@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'beat_model.dart';
+import 'beat_model_screen.dart';
 import 'brand.dart';
 import 'favorites.dart';
 import 'match_detail.dart';
@@ -51,6 +53,8 @@ class TodayScreen extends StatelessWidget {
                       fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.5)),
               Text('Live & upcoming across every sport',
                   style: TextStyle(color: muted)),
+              const SizedBox(height: 16),
+              _beatModelCard(context),
               const SizedBox(height: 16),
               if (mine.isNotEmpty) ...[
                 _sectionLabel(context, '★ Your teams', const Color(0xFFE8A33D)),
@@ -107,6 +111,59 @@ class TodayScreen extends StatelessWidget {
     const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
         'Oct', 'Nov', 'Dec'];
     return '${wd[day.weekday - 1]} ${day.day} ${mo[day.month - 1]}';
+  }
+
+  /// Entry point into the "Beat the Model" game, with a live score teaser.
+  Widget _beatModelCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: beatModel,
+      builder: (context, _) {
+        final active = beatModel.hasActivity;
+        final sub = beatModel.graded > 0
+            ? 'You ${beatModel.userRight} · Model ${beatModel.modelRight} — see how you\'re doing'
+            : active
+                ? 'Picks locked in — awaiting results'
+                : 'Predict a match. Can you out-call the algorithm?';
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BeatModelScreen())),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                      color: cs.primary.withOpacity(.14),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.sports_esports_rounded, color: cs.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Beat the Model',
+                          style: TextStyle(
+                              fontSize: 15.5, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(sub,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              color: cs.onSurface.withOpacity(.6))),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: cs.onSurface.withOpacity(.4)),
+              ]),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _sectionLabel(BuildContext c, String t, Color color) => Padding(

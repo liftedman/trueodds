@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'beat_model.dart';
 import 'favorites.dart';
+import 'live_prob.dart';
 import 'predict.dart';
 import 'team_avatar.dart';
 import 'theme.dart';
@@ -91,13 +93,62 @@ class MatchDetailScreen extends StatelessWidget {
     return _elo(c, accent); // wc / cl
   }
 
+  /// Approx minutes played, from the UTC kickoff (with a rough half-time gap).
+  int? _liveMinute() {
+    final f = fixture;
+    if (f == null || f['live'] != true) return null;
+    final ko = DateTime.tryParse((f['utc'] as String?) ?? '');
+    if (ko == null) return null;
+    var mins = DateTime.now().toUtc().difference(ko.toUtc()).inMinutes;
+    if (mins < 0) return null;
+    if (mins > 45 && mins <= 60) {
+      mins = 45; // half-time plateau
+    } else if (mins > 60) {
+      mins = mins - 15; // discount the break once the second half is on
+    }
+    return mins.clamp(0, 90);
+  }
+
+  (int, int)? _parseScore() {
+    final s = fixture?['score'] as String?;
+    if (s == null) return null;
+    final p = s.split('-');
+    if (p.length != 2) return null;
+    final h = int.tryParse(p[0].trim()), a = int.tryParse(p[1].trim());
+    if (h == null || a == null) return null;
+    return (h, a);
+  }
+
+  /// The live win-probability block, or null if the match isn't live / lacks data.
+  Widget? _liveWidget(Color accent, GridResult r) {
+    final minute = _liveMinute();
+    final score = _parseScore();
+    if (minute == null || score == null) return null;
+    return LiveWinProbability(
+      home: home,
+      away: away,
+      lh: r.lh,
+      la: r.la,
+      preHome: r.home,
+      preDraw: r.draw,
+      preAway: r.away,
+      homeGoals: score.$1,
+      awayGoals: score.$2,
+      minute: minute,
+      accent: accent,
+    );
+  }
+
   // ---- football grid (clubs / wc / cl) shared renderer ----
   List<Widget> _grid(BuildContext c, Color accent, GridResult r,
       {List? clubLog, Map? hMap, Map? aMap, List<Reason> reasons = const []}) {
     final fav = [r.home, r.draw, r.away].reduce((a, b) => a > b ? a : b);
     final rm = r.result;
     final counts = (hMap != null && aMap != null) ? clubCounts(hMap, aMap) : null;
+    final live = _liveWidget(accent, r);
     return [
+      if (live != null) live,
+      if (live != null) _label(c, 'Pre-match model'),
       Center(child: ConfidenceBadge(fav)),
       ConfidenceNote(fav),
       WhyThis(reasons),
@@ -128,6 +179,15 @@ class MatchDetailScreen extends StatelessWidget {
         _form(c, home, teamForm(clubLog, home)),
         _form(c, away, teamForm(clubLog, away)),
       ],
+      BeatModelPick(
+        home: home,
+        away: away,
+        sport: sportKey,
+        modelPick: r.home >= r.draw && r.home >= r.away
+            ? 'H'
+            : (r.away >= r.draw ? 'A' : 'D'),
+        accent: accent,
+      ),
       const ResponsibleNote(),
     ];
   }
@@ -236,6 +296,14 @@ class MatchDetailScreen extends StatelessWidget {
       MarketChips(Predict.nbaSpread(nba, eloH, eloA, false), accent),
       _label(c, 'Total points'),
       MarketChips(Predict.nbaTotals(nba), accent),
+      BeatModelPick(
+        home: home,
+        away: away,
+        sport: 'nba',
+        allowDraw: false,
+        modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+        accent: accent,
+      ),
       const ResponsibleNote(),
     ];
   }

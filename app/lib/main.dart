@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'about.dart';
 import 'api.dart';
+import 'beat_model.dart';
 import 'brand.dart';
 import 'favorites.dart';
 import 'home_screen.dart';
@@ -14,6 +16,7 @@ import 'theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favorites.load();
+  await beatModel.load();
   runApp(const TrueOddsApp());
 }
 
@@ -33,6 +36,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
   bool _stale = false; // showing cached data; last fetch did not succeed
   bool _splash = true; // keep the brand on screen briefly on every launch
   bool? _onboarded; // null = still checking the first-run flag
+  DateTime? _lastBack; // for "press back again to exit"
   Timer? _timer; // normal 60s refresh
   Timer? _retry; // fast retry while offline, cancels itself once back online
 
@@ -54,6 +58,26 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
     setState(() => _onboarded = true);
   }
 
+  /// Android back: from a secondary tab, return to Today; from Today, require a
+  /// second press within 2s before exiting (so you don't quit by accident).
+  void _handleBack() {
+    if (_nav != 0) {
+      setState(() => _nav = 0);
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastBack == null || now.difference(_lastBack!) > const Duration(seconds: 2)) {
+      _lastBack = now;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Press back again to exit'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    SystemNavigator.pop(); // second press within the window — leave the app
+  }
+
   void _replayOnboarding() {
     Onboarding.reset();
     setState(() {
@@ -71,6 +95,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
         _data!['__updated'] = cache['updated_at'];
         _stale = true; // provisional until a live fetch confirms
       });
+      beatModel.grade(_data!['results'] as List?);
     }
     await _load();
   }
@@ -87,6 +112,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
         _error = null;
         _stale = false;
       });
+      beatModel.grade(_data!['results'] as List?); // grade picks vs results
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -122,8 +148,13 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
       themeMode: _mode,
       theme: AppTheme.light(kBrand),
       darkTheme: AppTheme.dark(kBrand),
-      home: Scaffold(
-        appBar: _showChrome
+      home: PopScope(
+        canPop: false, // we handle back ourselves (tab-aware + exit guard)
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _handleBack();
+        },
+        child: Scaffold(
+          appBar: _showChrome
             ? AppBar(
           titleSpacing: 16,
           title: const BrandMark(compact: true),
@@ -173,6 +204,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
                       label: 'About'),
                 ],
               ),
+        ),
       ),
     );
   }

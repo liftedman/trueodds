@@ -58,6 +58,50 @@ def _live_score(m: dict) -> str | None:
     return None
 
 
+_WINNER = {"HOME_TEAM": "H", "AWAY_TEAM": "A", "DRAW": "D"}
+
+
+def recent_results(days: int = 4) -> list[dict]:
+    """Recently finished World Cup matches with their outcome, for grading user
+    picks ("Beat the Model"). Names resolved to our Elo spelling so they match
+    the fixtures the app stored picks against. Clubs join later (off-season now).
+    """
+    session = _session()
+    if session is None:
+        return []
+    now = datetime.now(timezone.utc)
+    params = {
+        "status": "FINISHED",
+        "dateFrom": (now - timedelta(days=days)).strftime("%Y-%m-%d"),
+        "dateTo": (now + timedelta(days=1)).strftime("%Y-%m-%d"),
+    }
+    try:
+        r = session.get(_BASE.format(code=config.FOOTBALL_DATA_WC_CODE),
+                        params=params, timeout=_TIMEOUT)
+        r.raise_for_status()
+        matches = r.json().get("matches", [])
+    except (requests.RequestException, ValueError):
+        return []
+
+    out = []
+    for m in matches:
+        res = _WINNER.get((m.get("score") or {}).get("winner"))
+        rh, ra = m["homeTeam"].get("name"), m["awayTeam"].get("name")
+        if not res or not rh or not ra:
+            continue
+        date, _ = _fmt(m["utcDate"])
+        ft = (m.get("score") or {}).get("fullTime") or {}
+        out.append({
+            "sport": "wc",
+            "date": date,
+            "home": _WC_ALIAS.get(rh, rh),
+            "away": _WC_ALIAS.get(ra, ra),
+            "result": res,  # H / D / A
+            "score": f"{ft.get('home')}-{ft.get('away')}",
+        })
+    return out
+
+
 def _fetch(session, code: str) -> list[dict]:
     r = session.get(_BASE.format(code=code), params={"status": _UPCOMING},
                     timeout=_TIMEOUT)
@@ -86,7 +130,7 @@ def wc_fixtures(model, limit: int | None = None) -> list[dict] | None:
         p = model.predict(home, away, neutral=True)
         t = model.predict_totals(home, away, neutral=True)
         out.append({
-            "date": date, "time": tm,
+            "date": date, "time": tm, "utc": m["utcDate"],
             "live": m["status"] in _LIVE, "status": m["status"],
             "score": _live_score(m) if m["status"] in _LIVE else None,
             "home": home, "away": away,
@@ -125,7 +169,7 @@ def cl_fixtures(model) -> list[dict] | None:
         p = model.predict(rh, ra)            # home/away (not neutral)
         t = model.predict_totals(rh, ra)
         out.append({
-            "date": date, "time": tm,
+            "date": date, "time": tm, "utc": m["utcDate"],
             "live": m["status"] in _LIVE, "status": m["status"],
             "score": _live_score(m) if m["status"] in _LIVE else None,
             "home": rh, "away": ra,
@@ -167,7 +211,7 @@ def club_fixtures(models_by_code: dict) -> dict | None:
             p = model.predict(home, away)
             t = model.predict_totals(home, away)
             out[code].append({
-                "date": date, "time": tm,
+                "date": date, "time": tm, "utc": m["utcDate"],
                 "live": m["status"] in _LIVE, "status": m["status"],
                 "score": _live_score(m) if m["status"] in _LIVE else None,
                 "home": home, "away": away,
