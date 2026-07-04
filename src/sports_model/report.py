@@ -107,6 +107,7 @@ def _build_data() -> dict:
         "tennis": _build_tennis_data(),
         "cl": _build_cl_data(),
         "news": _safe_news(),
+        "receipts": _safe_receipts(),
     }
 
 
@@ -117,6 +118,14 @@ def _safe_news() -> list[dict]:
         return news.fetch_news()
     except Exception:
         return []
+
+
+def _safe_receipts() -> dict | None:
+    """Out-of-sample track record ("The Receipts"); never fatal to the snapshot."""
+    try:
+        return evaluate.build_receipts()
+    except Exception:
+        return None
 
 
 def _count_rates(code: str, seasons: list[str]) -> dict[str, dict]:

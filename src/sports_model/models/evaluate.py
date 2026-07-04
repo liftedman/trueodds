@@ -123,6 +123,99 @@ def backtest_season(
     }
 
 
+def build_receipts(half_life_days: float | None = None) -> dict | None:
+    """A public, out-of-sample track record for the app ("The Receipts").
+
+    For every top league we train on all earlier seasons and grade the model on
+    the most recent completed season it never saw. We report how often the pick
+    (the favourite) actually won, how well-calibrated those probabilities were,
+    and the same numbers for the bookmaker — the honest benchmark.
+    """
+    half_life_days = half_life_days or config.XG_HALF_LIFE_DAYS
+    model_hits: list[tuple[float, bool]] = []   # (prob on our pick, did it win)
+    book_hits: list[tuple[float, bool]] = []
+    m_probs, b_probs, actuals = [], [], []
+    examples: list[dict] = []
+    seasons_used: set[str] = set()
+
+    for code in config.FOOTBALL_LEAGUES:
+        df = load_league(code)
+        seasons = sorted(df["season"].unique())
+        if len(seasons) < 2:
+            continue
+        target = seasons[-1]
+        train = df[df["season"] < target]
+        test = df[(df["season"] == target) & df["ftr"].notna()]
+        if train.empty or test.empty:
+            continue
+        ref = pd.to_datetime(train["date"]).max()
+        model = dixon_coles.fit(train, half_life_days=half_life_days,
+                                ref_date=ref, use_xg=True)
+        seasons_used.add(target)
+        for _, row in test.iterrows():
+            bp = _implied_probs(row)
+            if bp is None:
+                continue
+            mp = model.predict(row["home"], row["away"])
+            actual = row["ftr"]
+            m_probs.append(mp); b_probs.append(bp); actuals.append(actual)
+            fav = max(mp, key=mp.get)
+            model_hits.append((mp[fav], fav == actual))
+            bfav = max(bp, key=bp.get)
+            book_hits.append((bp[bfav], bfav == actual))
+            name = {"H": row["home"], "A": row["away"], "D": "Draw"}
+            examples.append({
+                "match": f"{row['home']} v {row['away']}",
+                "pick": name[fav],
+                "prob": round(mp[fav], 3),
+                "score": f"{int(row['fthg'])}-{int(row['ftag'])}",
+                "result": name[actual],
+                "hit": bool(fav == actual),
+            })
+
+    if not model_hits:
+        return None
+
+    def hit_rate(rows):
+        return round(sum(h for _, h in rows) / len(rows), 4)
+
+    # calibration: bucket by the probability we put on our pick
+    buckets = [(0.0, 0.5, "under 50%"), (0.5, 0.6, "50–60%"),
+               (0.6, 0.7, "60–70%"), (0.7, 0.8, "70–80%"),
+               (0.8, 1.01, "80%+")]
+    calib = []
+    for lo, hi, label in buckets:
+        grp = [(p, h) for p, h in model_hits if lo <= p < hi]
+        if not grp:
+            continue
+        calib.append({
+            "label": label,
+            "predicted": round(sum(p for p, _ in grp) / len(grp), 4),
+            "actual": round(sum(h for _, h in grp) / len(grp), 4),
+            "n": len(grp),
+        })
+
+    # examples: our 3 most confident correct calls + 1 confident miss (honesty)
+    hits = sorted([e for e in examples if e["hit"]],
+                  key=lambda e: e["prob"], reverse=True)[:3]
+    misses = sorted([e for e in examples if not e["hit"]],
+                    key=lambda e: e["prob"], reverse=True)[:1]
+
+    season_label = "/".join(sorted(seasons_used)) if seasons_used else ""
+    return {
+        "basis": "Top European leagues, most recent completed season, "
+                 "out-of-sample (the model never trained on it).",
+        "season": season_label,
+        "n": len(model_hits),
+        "model": {"hit_rate": hit_rate(model_hits),
+                  "brier": round(_brier(m_probs, actuals), 4)},
+        "bookmaker": {"hit_rate": hit_rate(book_hits),
+                      "brier": round(_brier(b_probs, actuals), 4)},
+        "calibration": calib,
+        "examples": hits + misses,
+    }
+
+
 def _fmt(r: dict) -> str:
     g, x, b = r["goals_model"], r["xg_model"], r["bookmaker"]
     g_gap = g["log_loss"] - b["log_loss"]

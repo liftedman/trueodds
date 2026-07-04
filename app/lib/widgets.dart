@@ -159,60 +159,73 @@ class FixturesList extends StatelessWidget {
     final rows = fixtures.take(12).map<Widget>((f) {
       final live = f['live'] == true;
       final score = f['score'];
-      final when = (f['time'] ?? '').toString().isEmpty
-          ? '${f['date']}'
-          : "${f['date']}\n${f['time']}";
-      // probabilities (football) or win% (nba)
+      // probabilities (football h/d/a) or win% (nba home/away)
       List<Widget> odds;
       if (f.containsKey('home_win')) {
         final hw = (f['home_win'] as num).toDouble();
         final aw = (f['away_win'] as num).toDouble();
-        odds = [_o(pct(hw), hw >= aw, accent), _o(pct(aw), aw > hw, accent)];
+        odds = [
+          _o('1', pct(hw), hw >= aw, accent),
+          _o('2', pct(aw), aw > hw, accent),
+        ];
       } else {
         final h = (f['h'] as num).toDouble();
         final d = (f['d'] as num).toDouble();
         final a = (f['a'] as num).toDouble();
         final mx = [h, d, a].reduce((x, y) => x > y ? x : y);
-        odds = [_o(pct(h), h == mx, accent), _o(pct(d), d == mx, accent), _o(pct(a), a == mx, accent)];
+        odds = [
+          _o('1', pct(h), h == mx, accent),
+          _o('X', pct(d), d == mx, accent),
+          _o('2', pct(a), a == mx, accent),
+        ];
       }
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        child: Row(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DuoAvatar(f['home'] as String, f['away'] as String, size: 26),
-            const SizedBox(width: 10),
-            SizedBox(
-                width: 56,
-                child: Text(when,
-                    style: TextStyle(fontSize: 11, color: muted))),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Flexible(
-                        child: Text('${f['home']} v ${f['away']}',
-                            style: const TextStyle(fontWeight: FontWeight.w600))),
-                    if (live)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text('● LIVE${score != null ? ' $score' : ''}',
-                            style: const TextStyle(
-                                color: Color(0xFFE5484D),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                  ]),
-                  if (f['ov'] != null)
-                    Text('Over 2.5: ${pct((f['ov'] as num).toDouble())}',
-                        style: TextStyle(fontSize: 11, color: muted)),
-                  if (f['proj'] != null)
-                    Text('proj ${f['proj']}',
-                        style: TextStyle(fontSize: 11, color: muted)),
-                ],
+            // top line: crests + matchup (full width) + time / live
+            Row(children: [
+              DuoAvatar(f['home'] as String, f['away'] as String, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('${f['home']}  v  ${f['away']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14.5)),
               ),
-            ),
-            Row(mainAxisSize: MainAxisSize.min, children: odds),
+              const SizedBox(width: 8),
+              if (live)
+                Text('● LIVE${score != null ? '  $score' : ''}',
+                    style: const TextStyle(
+                        color: Color(0xFFE5484D),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700))
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('${f['time'] ?? ''}',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('${f['date'] ?? ''}',
+                        style: TextStyle(fontSize: 10, color: muted)),
+                  ],
+                ),
+            ]),
+            const SizedBox(height: 8),
+            // second line: odds + extras, left-aligned with room to breathe
+            Row(children: [
+              ...odds,
+              const Spacer(),
+              if (f['proj'] != null)
+                Text('proj ${f['proj']}',
+                    style: TextStyle(fontSize: 11, color: muted)),
+              if (f['ov'] != null)
+                Text('O2.5 ${pct((f['ov'] as num).toDouble())}',
+                    style: TextStyle(fontSize: 11, color: muted)),
+            ]),
           ],
         ),
       );
@@ -227,18 +240,27 @@ class FixturesList extends StatelessWidget {
     );
   }
 
-  Widget _o(String text, bool win, Color accent) => Container(
-        margin: const EdgeInsets.only(left: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+  Widget _o(String label, String value, bool win, Color accent) => Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
-          border: Border.all(color: win ? accent : Colors.transparent),
-          borderRadius: BorderRadius.circular(5),
+          color: win ? accent.withOpacity(.12) : null,
+          border: Border.all(color: win ? accent : Colors.grey.withOpacity(.3)),
+          borderRadius: BorderRadius.circular(7),
         ),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 11,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                color: win ? accent : null)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text('$label ',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: win ? accent : Colors.grey)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontWeight: win ? FontWeight.w700 : FontWeight.normal,
+                  color: win ? accent : null)),
+        ]),
       );
 }
 

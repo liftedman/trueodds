@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'track_record.dart';
 
 /// The honesty layer — how it works, the real track record, and the data.
 class AboutTab extends StatelessWidget {
@@ -52,6 +53,7 @@ class AboutTab extends StatelessWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
+      _trackRecordCard(context),
       card('How it works', [
         const Text(
           'Three models, each suited to its sport. Clubs use a Dixon-Coles '
@@ -110,5 +112,55 @@ class AboutTab extends StatelessWidget {
         ),
       ),
     ]));
+  }
+
+  /// Prominent, tappable teaser that opens the full track record.
+  Widget _trackRecordCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final r = data['receipts'] as Map?;
+    final model = (r?['model'] as Map?)?['hit_rate'] as num?;
+    final book = (r?['bookmaker'] as Map?)?['hit_rate'] as num?;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => TrackRecordScreen(data))),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                  color: cs.primary.withOpacity(.14),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(Icons.receipt_long_rounded, color: cs.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Our track record',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(
+                    model != null && book != null
+                        ? 'Our picks won ${(model * 100).round()}% vs the '
+                            'bookmaker\'s ${(book * 100).round()}% — see the receipts'
+                        : 'See how our past predictions actually did',
+                    style: TextStyle(
+                        fontSize: 13, color: cs.onSurface.withOpacity(.6)),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: cs.onSurface.withOpacity(.4)),
+          ]),
+        ),
+      ),
+    );
   }
 }
