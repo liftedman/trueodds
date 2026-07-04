@@ -13,12 +13,13 @@ class TrackRecordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = data['receipts'] as Map?;
+    final wc = data['wc_receipts'] as Map?;
     final cs = Theme.of(context).colorScheme;
     final muted = cs.onSurface.withOpacity(.6);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Our track record')),
-      body: r == null
+      body: (r == null && wc == null)
           ? _empty(context, muted)
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -34,16 +35,68 @@ class TrackRecordScreen extends StatelessWidget {
                     'How our predictions actually did — graded on games the '
                     'model never trained on. No cherry-picking.',
                     style: TextStyle(color: muted, height: 1.4)),
-                const SizedBox(height: 20),
-                _headline(context, r),
-                const SizedBox(height: 24),
-                _calibration(context, r),
-                const SizedBox(height: 24),
-                _examples(context, r),
-                const SizedBox(height: 20),
-                _honestNote(context, r),
+                if (r != null) ...[
+                  const SizedBox(height: 18),
+                  _bandTitle(context, 'Club football'),
+                  const SizedBox(height: 12),
+                  _headline(context, r),
+                  const SizedBox(height: 24),
+                  _calibration(context, r),
+                  const SizedBox(height: 24),
+                  _examples(context, r),
+                  const SizedBox(height: 20),
+                  _honestNote(context, r),
+                ],
+                if (wc != null) ...[
+                  const SizedBox(height: 28),
+                  _bandTitle(context, 'World Cup & internationals'),
+                  const SizedBox(height: 12),
+                  _wcHeadline(context, wc),
+                  const SizedBox(height: 24),
+                  _calibration(context, wc),
+                  const SizedBox(height: 24),
+                  _examples(context, wc),
+                ],
               ],
             ),
+    );
+  }
+
+  Widget _bandTitle(BuildContext c, String t) {
+    final cs = Theme.of(c).colorScheme;
+    return Row(children: [
+      Container(width: 4, height: 20, decoration: BoxDecoration(
+          color: cs.primary, borderRadius: BorderRadius.circular(2))),
+      const SizedBox(width: 8),
+      Text(t, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+    ]);
+  }
+
+  // Single hit-rate stat for internationals (no betting market to compare to).
+  Widget _wcHeadline(BuildContext c, Map wc) {
+    final cs = Theme.of(c).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(.4),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(children: [
+        Text('${_pct(wc['hit_rate'] as num)}%',
+            style: TextStyle(
+                fontSize: 44,
+                height: 1,
+                fontWeight: FontWeight.w800,
+                color: cs.primary)),
+        const SizedBox(height: 6),
+        Text('of our World Cup / international picks were correct',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: cs.onSurface.withOpacity(.6))),
+        const SizedBox(height: 8),
+        Text('across ${wc['n']} matches · out-of-sample · no betting market',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(.55))),
+      ]),
     );
   }
 

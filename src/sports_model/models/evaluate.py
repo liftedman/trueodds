@@ -216,6 +216,101 @@ def build_receipts(half_life_days: float | None = None) -> dict | None:
     }
 
 
+def _calibration_buckets(hits: list[tuple[float, bool]]) -> list[dict]:
+    """Bucket (prob-on-pick, hit) pairs by confidence band."""
+    bands = [(0.0, 0.5, "under 50%"), (0.5, 0.6, "50–60%"),
+             (0.6, 0.7, "60–70%"), (0.7, 0.8, "70–80%"), (0.8, 1.01, "80%+")]
+    out = []
+    for lo, hi, label in bands:
+        grp = [(p, h) for p, h in hits if lo <= p < hi]
+        if not grp:
+            continue
+        out.append({
+            "label": label,
+            "predicted": round(sum(p for p, _ in grp) / len(grp), 4),
+            "actual": round(sum(h for _, h in grp) / len(grp), 4),
+            "n": len(grp),
+        })
+    return out
+
+
+def build_wc_receipts(train_before: str = "2022-01-01") -> dict | None:
+    """Out-of-sample track record for the World Cup / international model.
+
+    Elo is naturally walk-forward: a team's rating before a match only reflects
+    earlier matches. We fit the goal model on matches before `train_before`,
+    then walk every match from that date on — predicting each with the ratings
+    as they stood *before* it, grading, then updating. No bookmaker exists for
+    internationals, so we report hit-rate and calibration only.
+    """
+    from .. import db
+    from . import elo as elo_mod
+
+    with db.connect() as conn:
+        df = pd.read_sql_query(
+            "SELECT date, home, away, home_score, away_score, tournament, neutral "
+            "FROM international_matches WHERE home_score IS NOT NULL ORDER BY date",
+            conn,
+        )
+    if df.empty:
+        return None
+    df["date"] = pd.to_datetime(df["date"])
+    cutoff = pd.Timestamp(train_before)
+    train = df[df["date"] < cutoff]
+    test = df[df["date"] >= cutoff]
+    if len(train) < 1000 or test.empty:
+        return None
+
+    base = elo_mod.fit(train)  # goal-model params + ratings as of the cutoff
+    ratings = dict(base.ratings)
+    model = elo_mod.EloModel(ratings=ratings, sup_slope=base.sup_slope,
+                             total_base=base.total_base, total_gap=base.total_gap)
+
+    hits: list[tuple[float, bool]] = []
+    wc_examples: list[dict] = []
+    for r in test.itertuples(index=False):
+        neutral = bool(r.neutral)
+        p = model.predict(r.home, r.away, neutral=neutral)
+        probs = {"H": p["H"], "D": p["D"], "A": p["A"]}
+        hs, as_ = int(r.home_score), int(r.away_score)
+        actual = "H" if hs > as_ else ("D" if hs == as_ else "A")
+        fav = max(probs, key=probs.get)
+        hits.append((probs[fav], fav == actual))
+        if (r.tournament or "") == "FIFA World Cup":
+            name = {"H": r.home, "A": r.away, "D": "Draw"}
+            wc_examples.append({
+                "match": f"{r.home} v {r.away}", "pick": name[fav],
+                "prob": round(probs[fav], 3), "score": f"{hs}-{as_}",
+                "result": name[actual], "hit": bool(fav == actual),
+            })
+        # carry ratings forward (same update as elo.fit)
+        rh, ra = ratings.get(r.home, 1500.0), ratings.get(r.away, 1500.0)
+        adv = 0.0 if neutral else elo_mod._HOME_ADV
+        dr = rh - ra + adv
+        we = 1.0 / (1.0 + 10 ** (-dr / 400.0))
+        act = 1.0 if hs > as_ else (0.5 if hs == as_ else 0.0)
+        delta = elo_mod._k_factor(r.tournament) * elo_mod._g_mult(hs - as_) * (act - we)
+        ratings[r.home] = rh + delta
+        ratings[r.away] = ra - delta
+
+    if not hits:
+        return None
+    # examples: most confident correct World Cup calls + one confident miss
+    hitsex = sorted([e for e in wc_examples if e["hit"]],
+                    key=lambda e: e["prob"], reverse=True)[:3]
+    missex = sorted([e for e in wc_examples if not e["hit"]],
+                    key=lambda e: e["prob"], reverse=True)[:1]
+    return {
+        "basis": "International matches since "
+                 f"{cutoff.year}, out-of-sample (the World Cup Elo predicted each "
+                 "before it was played). No betting market exists for these.",
+        "n": len(hits),
+        "hit_rate": round(sum(h for _, h in hits) / len(hits), 4),
+        "calibration": _calibration_buckets(hits),
+        "examples": hitsex + missex,
+    }
+
+
 def _fmt(r: dict) -> str:
     g, x, b = r["goals_model"], r["xg_model"], r["bookmaker"]
     g_gap = g["log_loss"] - b["log_loss"]

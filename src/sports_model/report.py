@@ -108,6 +108,7 @@ def _build_data() -> dict:
         "cl": _build_cl_data(),
         "news": _safe_news(),
         "receipts": _safe_receipts(),
+        "wc_receipts": _safe_wc_receipts(),
         "results": _safe_results(),
     }
 
@@ -125,6 +126,14 @@ def _safe_receipts() -> dict | None:
     """Out-of-sample track record ("The Receipts"); never fatal to the snapshot."""
     try:
         return evaluate.build_receipts()
+    except Exception:
+        return None
+
+
+def _safe_wc_receipts() -> dict | None:
+    """World Cup / international track record; never fatal to the snapshot."""
+    try:
+        return evaluate.build_wc_receipts()
     except Exception:
         return None
 
