@@ -256,6 +256,40 @@ class Predict {
     };
   }
 
+  /// NFL — win prob + projected score. Same Elo-margin model as the NBA one.
+  static ({double homeWin, double awayWin, double projHome, double projAway})
+      nfl(Map nfl, double eloH, double eloA, bool neutral,
+          {int outHome = 0, int outAway = 0}) =>
+          nba(nfl, eloH, eloA, neutral, outHome: outHome, outAway: outAway);
+
+  /// NFL point-spread cover probabilities (home perspective).
+  static Map<String, double> nflSpread(
+      Map nfl, double eloH, double eloA, bool neutral,
+      {int outHome = 0, int outAway = 0}) {
+    final adv = neutral ? 0.0 : _d(nfl['home_adv']);
+    final dr = (eloH - 40 * outHome) - (eloA - 40 * outAway) + adv;
+    final margin = _d(nfl['margin_slope']) * dr;
+    final std = _d(nfl['margin_std']);
+    double cover(double line) => 1 - _ncdf((line - margin) / std);
+    return {
+      'Home -3.5': cover(3.5),
+      'Home -7.5': cover(7.5),
+      'Home +3.5': cover(-3.5),
+    };
+  }
+
+  /// NFL total-points over probabilities.
+  static Map<String, double> nflTotals(Map nfl) {
+    final mt = _d(nfl['mean_total']);
+    final std = _d(nfl['total_std']);
+    double over(double line) => 1 - _ncdf((line - mt) / std);
+    return {
+      'Over 41.5': over(41.5),
+      'Over 44.5': over(44.5),
+      'Over 47.5': over(47.5),
+    };
+  }
+
   /// Tennis — surface-aware blended Elo.
   static double tennis(Map t, Map a, Map b, String surface) {
     double blend(Map p) {

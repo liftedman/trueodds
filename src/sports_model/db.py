@@ -114,6 +114,24 @@ CREATE TABLE IF NOT EXISTS tennis_matches (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tennis_date ON tennis_matches (date);
+
+-- NFL games (one row per game). Teams stored as team abbreviations.
+-- Includes future fixtures: those have NULL scores until played.
+CREATE TABLE IF NOT EXISTS nfl_games (
+    game_id     TEXT PRIMARY KEY,
+    date        TEXT NOT NULL,          -- ISO 8601: YYYY-MM-DD
+    season      INTEGER NOT NULL,
+    week        INTEGER,
+    game_type   TEXT,                   -- REG / POST / ...
+    home        TEXT NOT NULL,
+    away        TEXT NOT NULL,
+    home_score  INTEGER,                -- NULL = not played yet
+    away_score  INTEGER,
+    neutral     INTEGER                 -- 1 if a neutral-site game
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfl_date ON nfl_games (date);
+CREATE INDEX IF NOT EXISTS idx_nfl_season ON nfl_games (season);
 """
 
 

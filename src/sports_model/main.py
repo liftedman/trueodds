@@ -64,6 +64,12 @@ def cmd_ingest_nba() -> None:
     nba.ingest_all()
 
 
+def cmd_ingest_nfl() -> None:
+    from .ingest import nfl
+
+    nfl.ingest_all()
+
+
 def cmd_nba() -> None:
     from . import config
     from .models import nba, nba_schedule
@@ -317,6 +323,14 @@ def cmd_edgehunt() -> None:
     edge_hunt.run_sweep(target_season=season, bet_source=source)
 
 
+def cmd_crests() -> None:
+    from . import crests
+
+    out = crests.fetch_crests()
+    n = sum(len(v) for v in out.values())
+    print(f"Cached {n} team crests across {len(out)} leagues -> {crests.CRESTS_PATH}")
+
+
 _COMMANDS = {
     "init": cmd_init,
     "ingest": cmd_ingest,
@@ -324,6 +338,7 @@ _COMMANDS = {
     "ingest-extra": cmd_ingest_extra,
     "ingest-intl": cmd_ingest_intl,
     "ingest-nba": cmd_ingest_nba,
+    "ingest-nfl": cmd_ingest_nfl,
     "nba": cmd_nba,
     "ingest-tennis": cmd_ingest_tennis,
     "tennis": cmd_tennis,
@@ -333,6 +348,7 @@ _COMMANDS = {
     "backtest": cmd_backtest,
     "value": cmd_value,
     "edge-hunt": cmd_edgehunt,
+    "crests": cmd_crests,
     "scan": cmd_scan,
     "scan-totals": cmd_scan_totals,
     "report": cmd_report,

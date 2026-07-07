@@ -7,6 +7,7 @@ else imports from here so there's a single source of truth.
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 # --- Paths -----------------------------------------------------------------
@@ -67,25 +68,25 @@ FOOTBALL_LEAGUES: dict[str, str] = {
     "D1": "Bundesliga",
     "I1": "Serie A",
     "F1": "Ligue 1",
-    "E1": "Championship",     # England 2nd tier — full fixtures + live
-    "N1": "Eredivisie",       # Netherlands — full fixtures + live
-    "P1": "Primeira Liga",    # Portugal — full fixtures + live
+    "E1": "Championship",       # England 2nd tier — fixtures via football-data.org
+    "N1": "Eredivisie",         # Netherlands — fixtures via football-data.org
+    "P1": "Primeira Liga",      # Portugal — fixtures via football-data.org
+    "SC0": "Scottish Premiership",  # fixtures via TheSportsDB
+    "B1": "Belgian Pro League",     # fixtures via TheSportsDB
+    "T1": "Süper Lig",              # Turkey — fixtures via TheSportsDB
+    "G1": "Greek Super League",     # fixtures via TheSportsDB
 }
 
-# Secondary leagues: lower divisions + smaller nations. Softer lines, thinner
-# sharp money -> the realistic place to hunt for a market inefficiency. No xG
-# available, so these use the goals-based model.
+# Secondary leagues: lower divisions. Softer lines, thinner sharp money -> the
+# realistic place to hunt for a market inefficiency. No xG available, so these
+# use the goals-based model. (Kept for backtests, not shown in the app.)
 SECONDARY_FOOTBALL_LEAGUES: dict[str, str] = {
     "E2": "League One (ENG)",
     "E3": "League Two (ENG)",
-    "SC0": "Scottish Prem",
     "D2": "2. Bundesliga",
     "SP2": "La Liga 2",
     "I2": "Serie B",
     "F2": "Ligue 2",
-    "B1": "Jupiler (BEL)",
-    "T1": "Super Lig (TUR)",
-    "G1": "Super League (GRE)",
 }
 
 # Combined lookup for name resolution during ingestion.
@@ -95,14 +96,26 @@ ALL_FOOTBALL_LEAGUES: dict[str, str] = {
 }
 
 # Season codes as football-data.co.uk encodes them: "2324" = 2023/24 season.
-# Start with recent seasons; we can extend backwards later.
+# The list is generated from a fixed start year up to the *current* season, so
+# ingest always pulls the latest season automatically — no manual bumping. The
+# not-yet-started upcoming season just 404s harmlessly until fixtures publish.
+FOOTBALL_SEASON_START = 2019  # earliest season we ingest
+
+
+def season_code(start_year: int) -> str:
+    """2023 -> '2324' (football-data.co.uk's two-year encoding)."""
+    return f"{start_year % 100:02d}{(start_year + 1) % 100:02d}"
+
+
+def current_season_start(today: date | None = None) -> int:
+    """Starting year of the season in play now. Football kicks off in August,
+    so from July we roll to the new season."""
+    today = today or date.today()
+    return today.year if today.month >= 7 else today.year - 1
+
+
 FOOTBALL_SEASONS: list[str] = [
-    "1920",
-    "2021",
-    "2122",
-    "2223",
-    "2324",
-    "2425",
+    season_code(y) for y in range(FOOTBALL_SEASON_START, current_season_start() + 1)
 ]
 
 FOOTBALL_BASE_URL = "https://www.football-data.co.uk/mmz4281"
@@ -124,6 +137,10 @@ CLUB_TSDB_IDS: dict[str, str] = {
     "E1": "4329",   # Championship (TheSportsDB fallback)
     "N1": "4337",   # Eredivisie
     "P1": "4344",   # Primeira Liga
+    "SC0": "4330",  # Scottish Premiership (TheSportsDB primary — not on football-data free)
+    "B1": "4338",   # Belgian Pro League
+    "T1": "4339",   # Turkish Süper Lig
+    "G1": "4336",   # Greek Super League
 }
 
 # Kickoff times from TheSportsDB are UTC. We display them shifted to this

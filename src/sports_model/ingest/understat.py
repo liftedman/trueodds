@@ -39,7 +39,9 @@ def _our_season(start_year: int) -> str:
     return f"{start_year % 100:02d}{(start_year + 1) % 100:02d}"
 
 
-_UNDERSTAT_YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
+# understat uses the season's starting year; auto-extend to the current season
+# so xG ingestion tracks the calendar with no manual edits.
+_UNDERSTAT_YEARS = list(range(2019, config.current_season_start() + 1))
 
 # understat team title -> football-data.co.uk team name.
 # Only names that actually differ need an entry; exact matches pass through.

@@ -5,6 +5,7 @@ import 'about.dart';
 import 'api.dart';
 import 'beat_model.dart';
 import 'brand.dart';
+import 'crests.dart';
 import 'favorites.dart';
 import 'home_screen.dart';
 import 'news.dart';
@@ -95,6 +96,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
         _data!['__updated'] = cache['updated_at'];
         _stale = true; // provisional until a live fetch confirms
       });
+      loadTeamCrests(_data!);
       beatModel.grade(_data!['results'] as List?);
     }
     await _load();
@@ -112,6 +114,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
         _error = null;
         _stale = false;
       });
+      loadTeamCrests(_data!);
       beatModel.grade(_data!['results'] as List?); // grade picks vs results
     } catch (e) {
       if (!mounted) return;

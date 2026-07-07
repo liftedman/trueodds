@@ -21,8 +21,10 @@ from .models import dixon_coles, evaluate
 
 
 def _build_data() -> dict:
+    from . import crests as crests_mod
     from .models import club_schedule, football_data
 
+    crests = crests_mod.load_crests()  # {code: {team: crest_url}}
     leagues: dict[str, dict] = {}
     models: dict[str, object] = {}
     for code, name in config.FOOTBALL_LEAGUES.items():
@@ -65,10 +67,14 @@ def _build_data() -> dict:
 
         # Corner/card rates per current team -> attach to the team entries.
         rates = _count_rates(code, list(recent))
+        league_crests = crests.get(code, {})
         for t in teams:
             r = rates.get(t["name"])
             if r:
                 t.update(r)
+            crest = league_crests.get(t["name"])
+            if crest:
+                t["crest"] = crest
 
         log_df = df[df["season"].isin(recent) & df["fthg"].notna()]
         match_log = [
@@ -91,10 +97,24 @@ def _build_data() -> dict:
     # Preferred: football-data.org (complete + live); else free TheSportsDB.
     fixtures_by_code = football_data.club_fixtures(models)
     if fixtures_by_code is None:
+        # No API key at all — use TheSportsDB for every league.
         try:
             fixtures_by_code, _ = club_schedule.fetch_all(models)
         except Exception:
             fixtures_by_code = {}
+    else:
+        # football-data.org only covers leagues with a competition code; fill
+        # the rest (Scotland/Belgium/Turkey/Greece) from TheSportsDB.
+        gaps = {c: m for c, m in models.items()
+                if not fixtures_by_code.get(c) and config.CLUB_TSDB_IDS.get(c)}
+        if gaps:
+            try:
+                tsdb_fx, _ = club_schedule.fetch_all(gaps)
+                for c, fx in tsdb_fx.items():
+                    if fx:
+                        fixtures_by_code[c] = fx
+            except Exception:
+                pass
     for code, fx in (fixtures_by_code or {}).items():
         leagues[code]["fixtures"] = fx
 
@@ -105,6 +125,7 @@ def _build_data() -> dict:
         "leagues": leagues,
         "wc": _build_wc_data(),
         "nba": _build_nba_data(),
+        "nfl": _build_nfl_data(),
         "tennis": _build_tennis_data(),
         "cl": _build_cl_data(),
         "news": _safe_news(),
@@ -224,6 +245,31 @@ def _build_nba_data() -> dict | None:
         "margin_std": round(model.margin_std, 2),
         "total_std": round(model.total_std, 2),
         "teams": nba_mod.team_ratings(model),  # [{abbr, name, elo}] ranked
+        "fixtures": fixtures,
+    }
+
+
+def _build_nfl_data() -> dict | None:
+    """NFL Elo ratings, projected-score params, and upcoming fixtures."""
+    from .models import nfl as nfl_mod
+
+    try:
+        model = nfl_mod.fit_model()
+    except Exception:
+        return None
+    if not model.ratings:
+        return None
+    try:
+        fixtures = nfl_mod.upcoming_fixtures(model)
+    except Exception:
+        fixtures = []
+    return {
+        "home_adv": round(model.home_adv, 1),
+        "margin_slope": round(model.margin_slope, 5),
+        "mean_total": round(model.mean_total, 2),
+        "margin_std": round(model.margin_std, 2),
+        "total_std": round(model.total_std, 2),
+        "teams": nfl_mod.team_ratings(model),  # [{abbr, name, elo}] ranked
         "fixtures": fixtures,
     }
 

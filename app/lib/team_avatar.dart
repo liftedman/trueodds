@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'crests.dart';
 
-/// Stable, crest-like initials avatar. Each team/player gets a consistent
-/// colour derived from its name, so no image assets are needed.
+/// Team avatar: shows the real crest when we have one, otherwise a stable
+/// colour-from-name monogram (so every team always has a mark).
 class TeamAvatar extends StatelessWidget {
   final String name;
   final double size;
@@ -29,12 +30,36 @@ class TeamAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = colorFor(name);
+    final crest = teamCrests[name];
+    if (crest != null) {
+      final border = Theme.of(context).colorScheme.surface;
+      return Container(
+        width: size,
+        height: size,
+        padding: EdgeInsets.all(size * .1),
+        decoration: BoxDecoration(
+          color: Colors.white, // logos are designed for a light backing
+          shape: BoxShape.circle,
+          border: Border.all(color: border, width: size * .06),
+        ),
+        child: Image.network(
+          crest,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _monogram(context),
+          loadingBuilder: (c, child, progress) =>
+              progress == null ? child : const SizedBox.shrink(),
+        ),
+      );
+    }
+    return _monogram(context);
+  }
+
+  Widget _monogram(BuildContext context) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color,
+        color: colorFor(name),
         shape: BoxShape.circle,
         border: Border.all(
             color: Theme.of(context).colorScheme.surface, width: size * .06),
