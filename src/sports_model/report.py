@@ -225,18 +225,24 @@ def _count_rates(code: str, seasons: list[str]) -> dict[str, dict]:
 
 
 def _build_nba_data() -> dict | None:
-    """NBA Elo ratings + projected-score params + upcoming games."""
-    from .models import nba as nba_mod, nba_schedule
+    """NBA Elo ratings + projected-score params + upcoming/live games."""
+    from .models import espn, nba as nba_mod, nba_schedule
 
     try:
         model = nba_mod.fit_model()
     except Exception:
         return None
 
+    # ESPN first (live scores + cloud-reachable); nba_api only as a fallback.
     try:
-        fixtures = nba_schedule.fetch_schedule(model, days_ahead=7)
+        fixtures = espn.fixtures("nba", model, nba_mod.TEAM_NAMES)
     except Exception:
         fixtures = []
+    if not fixtures:
+        try:
+            fixtures = nba_schedule.fetch_schedule(model, days_ahead=7)
+        except Exception:
+            fixtures = []
 
     return {
         "home_adv": round(model.home_adv, 1),
@@ -250,8 +256,8 @@ def _build_nba_data() -> dict | None:
 
 
 def _build_nfl_data() -> dict | None:
-    """NFL Elo ratings, projected-score params, and upcoming fixtures."""
-    from .models import nfl as nfl_mod
+    """NFL Elo ratings, projected-score params, and upcoming/live fixtures."""
+    from .models import espn, nfl as nfl_mod
 
     try:
         model = nfl_mod.fit_model()
@@ -259,10 +265,17 @@ def _build_nfl_data() -> dict | None:
         return None
     if not model.ratings:
         return None
+    # ESPN first (live scores in-season); the static schedule is the off-season
+    # fallback so the tab still previews the fixture list.
     try:
-        fixtures = nfl_mod.upcoming_fixtures(model)
+        fixtures = espn.fixtures("nfl", model, nfl_mod.TEAM_NAMES, days=8)
     except Exception:
         fixtures = []
+    if not fixtures:
+        try:
+            fixtures = nfl_mod.upcoming_fixtures(model)
+        except Exception:
+            fixtures = []
     return {
         "home_adv": round(model.home_adv, 1),
         "margin_slope": round(model.margin_slope, 5),
