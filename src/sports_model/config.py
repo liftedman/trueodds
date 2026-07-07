@@ -49,6 +49,9 @@ FOOTBALL_DATA_COMP_CODES: dict[str, str] = {
     "D1": "BL1",   # Bundesliga
     "I1": "SA",    # Serie A
     "F1": "FL1",   # Ligue 1
+    "E1": "ELC",   # Championship
+    "N1": "DED",   # Eredivisie
+    "P1": "PPL",   # Primeira Liga
 }
 FOOTBALL_DATA_WC_CODE = "WC"
 
@@ -64,13 +67,15 @@ FOOTBALL_LEAGUES: dict[str, str] = {
     "D1": "Bundesliga",
     "I1": "Serie A",
     "F1": "Ligue 1",
+    "E1": "Championship",     # England 2nd tier — full fixtures + live
+    "N1": "Eredivisie",       # Netherlands — full fixtures + live
+    "P1": "Primeira Liga",    # Portugal — full fixtures + live
 }
 
 # Secondary leagues: lower divisions + smaller nations. Softer lines, thinner
 # sharp money -> the realistic place to hunt for a market inefficiency. No xG
 # available, so these use the goals-based model.
 SECONDARY_FOOTBALL_LEAGUES: dict[str, str] = {
-    "E1": "Championship (ENG)",
     "E2": "League One (ENG)",
     "E3": "League Two (ENG)",
     "SC0": "Scottish Prem",
@@ -78,9 +83,7 @@ SECONDARY_FOOTBALL_LEAGUES: dict[str, str] = {
     "SP2": "La Liga 2",
     "I2": "Serie B",
     "F2": "Ligue 2",
-    "N1": "Eredivisie (NED)",
     "B1": "Jupiler (BEL)",
-    "P1": "Primeira (POR)",
     "T1": "Super Lig (TUR)",
     "G1": "Super League (GRE)",
 }
@@ -118,6 +121,9 @@ CLUB_TSDB_IDS: dict[str, str] = {
     "D1": "4331",   # Bundesliga
     "I1": "4332",   # Serie A
     "F1": "4334",   # Ligue 1
+    "E1": "4329",   # Championship (TheSportsDB fallback)
+    "N1": "4337",   # Eredivisie
+    "P1": "4344",   # Primeira Liga
 }
 
 # Kickoff times from TheSportsDB are UTC. We display them shifted to this

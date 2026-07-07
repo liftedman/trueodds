@@ -151,6 +151,13 @@ def fit(
              True the low-score (rho) correction is disabled — it only makes
              sense for integer scorelines.
     """
+    # Fall back to actual goals when xG isn't available for this league
+    # (understat only covers the top-5; secondary leagues have no xG).
+    if use_xg and (
+        "xg_h" not in matches.columns or matches["xg_h"].notna().sum() == 0
+    ):
+        use_xg = False
+
     home_col, away_col = ("xg_h", "xg_a") if use_xg else ("fthg", "ftag")
     df = matches.dropna(subset=[home_col, away_col]).copy()
 
