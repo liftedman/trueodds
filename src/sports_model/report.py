@@ -100,6 +100,7 @@ def _build_data() -> dict:
 
     return {
         "generated": date.today().isoformat(),
+        "build": _git_sha(),  # which commit produced this snapshot (diagnostic)
         "tz": config.DISPLAY_TZ_LABEL,
         "leagues": leagues,
         "wc": _build_wc_data(),
@@ -111,6 +112,19 @@ def _build_data() -> dict:
         "wc_receipts": _safe_wc_receipts(),
         "results": _safe_results(),
     }
+
+
+def _git_sha() -> str:
+    """Short SHA of the commit this code is running from (for diagnosing which
+    version the cloud actually executed). 'unknown' if git isn't available."""
+    try:
+        import subprocess
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=config.PROJECT_ROOT, text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "unknown"
 
 
 def _safe_news() -> list[dict]:
