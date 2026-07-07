@@ -8,12 +8,19 @@ import 'team_avatar.dart';
 import 'theme.dart';
 
 /// The "Today" feed — live + upcoming matches aggregated across every sport.
-class TodayScreen extends StatelessWidget {
+class TodayScreen extends StatefulWidget {
   final Map data;
   final Future<void> Function() onRefresh;
   const TodayScreen(this.data, this.onRefresh, {super.key});
+  @override
+  State<TodayScreen> createState() => _TodayScreenState();
+}
+
+class _TodayScreenState extends State<TodayScreen> {
+  bool _soonOnly = false; // narrow the upcoming list to the next 7 days
 
   List<Map> _collect() {
+    final data = widget.data;
     final out = <Map>[];
     void add(String key, List? fx) {
       for (final f in (fx ?? const [])) out.add({'key': key, 'fx': f as Map});
@@ -22,6 +29,7 @@ class TodayScreen extends StatelessWidget {
     add('wc', (data['wc'] as Map?)?['fixtures'] as List?);
     add('cl', (data['cl'] as Map?)?['fixtures'] as List?);
     add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
+    add('nfl', (data['nfl'] as Map?)?['fixtures'] as List?);
     return out;
   }
 
@@ -29,9 +37,17 @@ class TodayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final all = _collect();
     final live = all.where((e) => e['fx']['live'] == true).toList();
-    final upcoming = all.where((e) => e['fx']['live'] != true).toList()
+    final upcomingAll = all.where((e) => e['fx']['live'] != true).toList()
       ..sort((a, b) => '${a['fx']['date']} ${a['fx']['time']}'
           .compareTo('${b['fx']['date']} ${b['fx']['time']}'));
+    // "Soon" = kicks off within the next 7 days.
+    final cutoff = DateTime.now().add(const Duration(days: 7));
+    bool soon(Map e) {
+      final d = DateTime.tryParse('${e['fx']['date']}');
+      return d != null && d.isBefore(cutoff);
+    }
+    final upcoming = _soonOnly ? upcomingAll.where(soon).toList() : upcomingAll;
+    final soonCount = upcomingAll.where(soon).length;
     final muted = Theme.of(context).colorScheme.onSurface.withOpacity(.6);
 
     return ListenableBuilder(
@@ -43,7 +59,7 @@ class TodayScreen extends StatelessWidget {
                 favorites.contains(e['fx']['away']))
             .toList();
         return RefreshIndicator(
-          onRefresh: onRefresh,
+          onRefresh: widget.onRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
@@ -58,19 +74,25 @@ class TodayScreen extends StatelessWidget {
               const SizedBox(height: 16),
               if (mine.isNotEmpty) ...[
                 _sectionLabel(context, '★ Your teams', const Color(0xFFE8A33D)),
-                ...mine.map((e) => _MatchTile(data, e['key'], e['fx'])),
+                ...mine.map((e) => _MatchTile(widget.data, e['key'], e['fx'])),
                 const SizedBox(height: 16),
               ],
               if (live.isNotEmpty) ...[
                 _sectionLabel(context, '● Live now', const Color(0xFFE5484D)),
-                ...live.map((e) => _MatchTile(data, e['key'], e['fx'])),
+                ...live.map((e) => _MatchTile(widget.data, e['key'], e['fx'])),
                 const SizedBox(height: 16),
               ],
+              _rangeChips(context, soonCount),
+              const SizedBox(height: 8),
               if (upcoming.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
-                      child: Text('No matches scheduled right now.',
+                      child: Text(
+                          _soonOnly
+                              ? 'Nothing in the next 7 days — switch to All to see what\'s coming.'
+                              : 'No matches scheduled right now.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(color: muted))),
                 )
               else
@@ -82,6 +104,21 @@ class TodayScreen extends StatelessWidget {
     );
   }
 
+  /// "Soon (7 days) / All" toggle for the upcoming list.
+  Widget _rangeChips(BuildContext context, int soonCount) => Row(children: [
+        ChoiceChip(
+          label: Text('Next 7 days${soonCount > 0 ? ' ($soonCount)' : ''}'),
+          selected: _soonOnly,
+          onSelected: (_) => setState(() => _soonOnly = true),
+        ),
+        const SizedBox(width: 8),
+        ChoiceChip(
+          label: const Text('All'),
+          selected: !_soonOnly,
+          onSelected: (_) => setState(() => _soonOnly = false),
+        ),
+      ]);
+
   /// Upcoming matches split into date sections (Today / Tomorrow / Sat 28 Jun…).
   List<Widget> _groupedUpcoming(
       BuildContext context, List<Map> upcoming, Color muted) {
@@ -92,7 +129,7 @@ class TodayScreen extends StatelessWidget {
     final out = <Widget>[];
     for (final entry in groups.entries) {
       out.add(_sectionLabel(context, _dateLabel(entry.key), muted));
-      out.addAll(entry.value.map((e) => _MatchTile(data, e['key'], e['fx'])));
+      out.addAll(entry.value.map((e) => _MatchTile(widget.data, e['key'], e['fx'])));
       out.add(const SizedBox(height: 18));
     }
     return out;

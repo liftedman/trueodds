@@ -89,6 +89,7 @@ class MatchDetailScreen extends StatelessWidget {
 
   List<Widget> _body(BuildContext c, Color accent) {
     if (sportKey == 'nba') return _nba(c, accent);
+    if (sportKey == 'nfl') return _nfl(c, accent);
     if (sportKey == 'clubs') return _clubs(c, accent);
     return _elo(c, accent); // wc / cl
   }
@@ -300,6 +301,54 @@ class MatchDetailScreen extends StatelessWidget {
         home: home,
         away: away,
         sport: 'nba',
+        allowDraw: false,
+        modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+        accent: accent,
+      ),
+      const ResponsibleNote(),
+    ];
+  }
+
+  List<Widget> _nfl(BuildContext c, Color accent) {
+    final nfl = data['nfl'] as Map;
+    final elo = _eloMap(nfl['teams'] as List);
+    final eloH = elo[home] ?? 1500, eloA = elo[away] ?? 1500;
+    final r = Predict.nfl(nfl, eloH, eloA, false);
+    final fav = r.homeWin > r.awayWin ? r.homeWin : r.awayWin;
+    final favName = r.homeWin >= r.awayWin ? home : away;
+    final margin = (r.projHome - r.projAway).abs().round();
+    final gap = (eloH - eloA).abs().round();
+    final reasons = <Reason>[
+      Reason(Icons.emoji_events_outlined,
+          '$favName is favoured to win at ${pct(fav)}.'),
+      if (gap >= 15)
+        Reason(Icons.leaderboard_outlined,
+            '${eloH >= eloA ? home : away} carries a $gap-point rating edge.')
+      else
+        Reason(Icons.leaderboard_outlined,
+            'The teams are closely rated (within $gap points).'),
+      Reason(Icons.scoreboard_outlined,
+          'Projected ${r.projHome.round()}–${r.projAway.round()} — about a $margin-point margin.'),
+      Reason(Icons.home_outlined, 'Home-field advantage is applied to $home.'),
+    ];
+    return [
+      Center(child: ConfidenceBadge(fav)),
+      ConfidenceNote(fav),
+      WhyThis(reasons),
+      const SizedBox(height: 16),
+      ProbBar(home, r.homeWin, r.homeWin >= r.awayWin, accent),
+      ProbBar(away, r.awayWin, r.awayWin > r.homeWin, accent),
+      const SizedBox(height: 12),
+      Text('Projected score  ${r.projHome.round()} – ${r.projAway.round()}',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+      _label(c, 'Spread (cover)'),
+      MarketChips(Predict.nflSpread(nfl, eloH, eloA, false), accent),
+      _label(c, 'Total points'),
+      MarketChips(Predict.nflTotals(nfl), accent),
+      BeatModelPick(
+        home: home,
+        away: away,
+        sport: 'nfl',
         allowDraw: false,
         modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
         accent: accent,
