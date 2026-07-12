@@ -256,6 +256,18 @@ class Predict {
     };
   }
 
+  /// Total-points over lines derived from a league's own average total, so the
+  /// same code gives sensible lines for the NBA (~225) and the WNBA (~160).
+  static Map<String, double> totalsAround(Map m) {
+    final mt = _d(m['mean_total']);
+    final std = _d(m['total_std']);
+    final base = mt.floorToDouble() + 0.5; // an x.5 line near the mean
+    double over(double line) => 1 - _ncdf((line - mt) / std);
+    return {
+      for (final l in [base - 5, base, base + 5]) 'Over ${l.toStringAsFixed(1)}': over(l),
+    };
+  }
+
   /// NFL — win prob + projected score. Same Elo-margin model as the NBA one.
   static ({double homeWin, double awayWin, double projHome, double projAway})
       nfl(Map nfl, double eloH, double eloA, bool neutral,

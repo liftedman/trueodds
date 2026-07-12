@@ -44,6 +44,7 @@ jobs:
           python -m sports_model.main ingest-xg   || true
           python -m sports_model.main ingest-intl || true
           python -m sports_model.main ingest-nfl  || true
+          python -m sports_model.main ingest-wnba || true
           python -m sports_model.main crests      || true
 
       - name: Commit refreshed data

@@ -15,13 +15,16 @@ from .. import config
 
 _URL = {
     "nba": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+    "wnba": "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard",
     "nfl": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
 }
 
 # ESPN abbreviation -> our abbreviation (only where they differ).
+# WNBA is ESPN end-to-end (history + live), so no remapping needed.
 _ALIAS = {
     "nba": {"GS": "GSW", "NO": "NOP", "NY": "NYK", "SA": "SAS",
             "UTAH": "UTA", "WSH": "WAS"},
+    "wnba": {"CONN": "CON", "GSV": "GS", "WSH": "WAS"},
     "nfl": {"LAR": "LA", "WSH": "WAS", "JAC": "JAX"},
 }
 

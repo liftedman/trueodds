@@ -88,7 +88,7 @@ class MatchDetailScreen extends StatelessWidget {
   }
 
   List<Widget> _body(BuildContext c, Color accent) {
-    if (sportKey == 'nba') return _nba(c, accent);
+    if (sportKey == 'nba' || sportKey == 'wnba') return _basketball(c, accent);
     if (sportKey == 'nfl') return _nfl(c, accent);
     if (sportKey == 'clubs') return _clubs(c, accent);
     return _elo(c, accent); // wc / cl
@@ -261,8 +261,8 @@ class MatchDetailScreen extends StatelessWidget {
     return out;
   }
 
-  List<Widget> _nba(BuildContext c, Color accent) {
-    final nba = data['nba'] as Map;
+  List<Widget> _basketball(BuildContext c, Color accent) {
+    final nba = data[sportKey] as Map;
     final elo = _eloMap(nba['teams'] as List);
     final eloH = elo[home] ?? 1500, eloA = elo[away] ?? 1500;
     final r = Predict.nba(nba, eloH, eloA, false);
@@ -296,11 +296,11 @@ class MatchDetailScreen extends StatelessWidget {
       _label(c, 'Spread (cover)'),
       MarketChips(Predict.nbaSpread(nba, eloH, eloA, false), accent),
       _label(c, 'Total points'),
-      MarketChips(Predict.nbaTotals(nba), accent),
+      MarketChips(Predict.totalsAround(nba), accent),
       BeatModelPick(
         home: home,
         away: away,
-        sport: 'nba',
+        sport: sportKey,
         allowDraw: false,
         modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
         accent: accent,

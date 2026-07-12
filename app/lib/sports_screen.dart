@@ -6,7 +6,7 @@ import 'theme.dart';
 const sportTabs = [
   ('clubs', '⚽ Clubs'),
   ('wc', '🏆 World Cup'),
-  ('nba', '🏀 NBA'),
+  ('basketball', '🏀 Basketball'),
   ('nfl', '🏈 NFL'),
   ('tennis', '🎾 Tennis'),
   ('cl', '⭐ UCL'),
@@ -65,7 +65,7 @@ class _SportsScreenState extends State<SportsScreen> {
             children: [
               ClubsTab(widget.data, onRefresh: widget.onRefresh),
               EloTab(widget.data, 'wc', defaultNeutral: true, onRefresh: widget.onRefresh),
-              NbaTab(widget.data, onRefresh: widget.onRefresh),
+              BasketballTab(widget.data, onRefresh: widget.onRefresh),
               NflTab(widget.data, onRefresh: widget.onRefresh),
               TennisTab(widget.data, onRefresh: widget.onRefresh),
               EloTab(widget.data, 'cl', defaultNeutral: false, onRefresh: widget.onRefresh),

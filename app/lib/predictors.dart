@@ -505,34 +505,67 @@ class _EloTabState extends State<EloTab> {
   }
 }
 
-// ----------------------------------------------------------------- NBA
-class NbaTab extends StatefulWidget {
+// ------------------------------------------------- Basketball hub (NBA / WNBA)
+class BasketballTab extends StatefulWidget {
   final Map data;
   final Future<void> Function() onRefresh;
-  const NbaTab(this.data, {required this.onRefresh, super.key});
+  const BasketballTab(this.data, {required this.onRefresh, super.key});
   @override
-  State<NbaTab> createState() => _NbaTabState();
+  State<BasketballTab> createState() => _BasketballTabState();
 }
 
-class _NbaTabState extends State<NbaTab> {
-  late Map nba = widget.data['nba'] as Map;
-  late List teams = nba['teams'] as List;
-  late Map<String, double> elo = _eloMap(teams);
-  late List<String> names = _names(teams);
-  late String home = names.first;
-  late String away = names.length > 1 ? names[1] : names.first;
+class _BasketballTabState extends State<BasketballTab> {
+  late final List<Map> _leagues = (((widget.data['basketball_leagues'] as List?) ??
+          const [{'key': 'nba', 'name': 'NBA'}]))
+      .cast<Map>()
+      .where((l) => widget.data[l['key']] != null)
+      .toList();
+  late String _key = _leagues.isNotEmpty ? _leagues.first['key'] as String : 'nba';
+  String home = '', away = '';
   int outHome = 0, outAway = 0;
+
+  Map get _lg => widget.data[_key] as Map;
+  List get _teams => _lg['teams'] as List;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetTeams();
+  }
+
+  void _resetTeams() {
+    final n = _names(_teams);
+    home = n.first;
+    away = n.length > 1 ? n[1] : n.first;
+  }
+
+  void _setLeagueByName(String? name) {
+    final match = _leagues.firstWhere((l) => l['name'] == name,
+        orElse: () => _leagues.first);
+    setState(() {
+      _key = match['key'] as String;
+      outHome = 0;
+      outAway = 0;
+      _resetTeams();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
-    final r = Predict.nba(nba, elo[home]!, elo[away]!, false,
+    final lg = _lg;
+    final elo = _eloMap(_teams);
+    final names = _names(_teams);
+    if (!names.contains(home)) home = names.first;
+    if (!names.contains(away)) away = names.length > 1 ? names[1] : names.first;
+
+    final r = Predict.nba(lg, elo[home]!, elo[away]!, false,
         outHome: outHome, outAway: outAway);
     final fav = r.homeWin > r.awayWin ? r.homeWin : r.awayWin;
     final favName = r.homeWin >= r.awayWin ? home : away;
     final margin = (r.projHome - r.projAway).abs().round();
     final gap = (elo[home]! - elo[away]!).abs().round();
-    final nbaReasons = <Reason>[
+    final reasons = <Reason>[
       Reason(Icons.emoji_events_outlined,
           '$favName is favoured to win at ${pct(fav)}.'),
       if (gap >= 15)
@@ -552,6 +585,11 @@ class _NbaTabState extends State<NbaTab> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             children: [
       _card(context, [
+        if (_leagues.length > 1) ...[
+          Picker('League', _leagues.firstWhere((l) => l['key'] == _key)['name'] as String,
+              [for (final l in _leagues) l['name'] as String], _setLeagueByName),
+          const SizedBox(height: 12),
+        ],
         Row(children: [
           Expanded(child: Picker('Home', home, names, (v) => setState(() => home = v!))),
           IconButton(
@@ -576,7 +614,7 @@ class _NbaTabState extends State<NbaTab> {
         _matchup(context, home, away),
         Center(child: ConfidenceBadge(fav)),
         ConfidenceNote(fav),
-        WhyThis(nbaReasons),
+        WhyThis(reasons),
         const SizedBox(height: 12),
         ProbBar(home, r.homeWin, r.homeWin >= r.awayWin, accent),
         ProbBar(away, r.awayWin, r.awayWin > r.homeWin, accent),
@@ -584,16 +622,17 @@ class _NbaTabState extends State<NbaTab> {
         Text('Projected score  ${r.projHome.round()} – ${r.projAway.round()}',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         _chips(context, 'Spread (cover)',
-            Predict.nbaSpread(nba, elo[home]!, elo[away]!, false,
+            Predict.nbaSpread(lg, elo[home]!, elo[away]!, false,
                 outHome: outHome, outAway: outAway),
             accent),
-        _chips(context, 'Total points', Predict.nbaTotals(nba), accent),
+        _chips(context, 'Total points', Predict.totalsAround(lg), accent),
       ]),
-      _card(context, [_eloRatings(context, teams)]),
+      _card(context, [BeatModelPick(
+          home: home, away: away, sport: _key, allowDraw: false,
+          modelPick: r.homeWin >= r.awayWin ? 'H' : 'A', accent: accent)]),
+      _card(context, [_eloRatings(context, _teams)]),
       _card(context, _fixturesSection(
-          context,
-          ((widget.data['nba'] as Map)['fixtures'] as List?) ?? const [],
-          accent)),
+          context, (lg['fixtures'] as List?) ?? const [], accent)),
       const ResponsibleNote(),
     ]));
   }

@@ -118,13 +118,24 @@ def _build_data() -> dict:
     for code, fx in (fixtures_by_code or {}).items():
         leagues[code]["fixtures"] = fx
 
+    nba_data = _build_nba_data()
+    wnba_data = _build_wnba_data()
+    # Which basketball leagues to offer in the app's Basketball hub dropdown.
+    basketball = []
+    if nba_data:
+        basketball.append({"key": "nba", "name": "NBA"})
+    if wnba_data:
+        basketball.append({"key": "wnba", "name": "WNBA"})
+
     return {
         "generated": date.today().isoformat(),
         "build": _git_sha(),  # which commit produced this snapshot (diagnostic)
         "tz": config.DISPLAY_TZ_LABEL,
         "leagues": leagues,
         "wc": _build_wc_data(),
-        "nba": _build_nba_data(),
+        "nba": nba_data,
+        "wnba": wnba_data,
+        "basketball_leagues": basketball,
         "nfl": _build_nfl_data(),
         "tennis": _build_tennis_data(),
         "cl": _build_cl_data(),
@@ -251,6 +262,32 @@ def _build_nba_data() -> dict | None:
         "margin_std": round(model.margin_std, 2),
         "total_std": round(model.total_std, 2),
         "teams": nba_mod.team_ratings(model),  # [{abbr, name, elo}] ranked
+        "fixtures": fixtures,
+    }
+
+
+def _build_wnba_data() -> dict | None:
+    """WNBA Elo (ESPN-sourced) + projected-score params + live/upcoming games."""
+    from .models import wnba as wnba_mod
+
+    try:
+        model = wnba_mod.fit_model()
+    except Exception:
+        return None
+    if not model.ratings:
+        return None
+    try:
+        fixtures = wnba_mod.fixtures(model)
+    except Exception:
+        fixtures = []
+    return {
+        "name": "WNBA",
+        "home_adv": round(model.home_adv, 1),
+        "margin_slope": round(model.margin_slope, 5),
+        "mean_total": round(model.mean_total, 2),
+        "margin_std": round(model.margin_std, 2),
+        "total_std": round(model.total_std, 2),
+        "teams": wnba_mod.team_ratings(model),
         "fixtures": fixtures,
     }
 

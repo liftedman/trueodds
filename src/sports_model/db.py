@@ -132,6 +132,23 @@ CREATE TABLE IF NOT EXISTS nfl_games (
 
 CREATE INDEX IF NOT EXISTS idx_nfl_date ON nfl_games (date);
 CREATE INDEX IF NOT EXISTS idx_nfl_season ON nfl_games (season);
+
+-- Generic basketball games (WNBA, and room for more leagues), sourced from
+-- ESPN. One row per game; teams stored as ESPN abbreviations.
+CREATE TABLE IF NOT EXISTS bball_games (
+    league     TEXT NOT NULL,          -- 'wnba', ...
+    game_id    TEXT NOT NULL,
+    date       TEXT NOT NULL,          -- ISO 8601
+    season     INTEGER NOT NULL,
+    home       TEXT NOT NULL,
+    away       TEXT NOT NULL,
+    home_pts   INTEGER,
+    away_pts   INTEGER,
+    PRIMARY KEY (league, game_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bball_league ON bball_games (league);
+CREATE INDEX IF NOT EXISTS idx_bball_date ON bball_games (date);
 """
 
 

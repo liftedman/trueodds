@@ -29,6 +29,7 @@ class _TodayScreenState extends State<TodayScreen> {
     add('wc', (data['wc'] as Map?)?['fixtures'] as List?);
     add('cl', (data['cl'] as Map?)?['fixtures'] as List?);
     add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
+    add('wnba', (data['wnba'] as Map?)?['fixtures'] as List?);
     add('nfl', (data['nfl'] as Map?)?['fixtures'] as List?);
     return out;
   }

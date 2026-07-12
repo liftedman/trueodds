@@ -70,6 +70,12 @@ def cmd_ingest_nfl() -> None:
     nfl.ingest_all()
 
 
+def cmd_ingest_wnba() -> None:
+    from .ingest import bball
+
+    bball.ingest_all()
+
+
 def cmd_nba() -> None:
     from . import config
     from .models import nba, nba_schedule
@@ -339,6 +345,7 @@ _COMMANDS = {
     "ingest-intl": cmd_ingest_intl,
     "ingest-nba": cmd_ingest_nba,
     "ingest-nfl": cmd_ingest_nfl,
+    "ingest-wnba": cmd_ingest_wnba,
     "nba": cmd_nba,
     "ingest-tennis": cmd_ingest_tennis,
     "tennis": cmd_tennis,
