@@ -8,16 +8,18 @@ from .. import db
 from . import tennis_elo
 
 
-def load_matches() -> pd.DataFrame:
+def load_matches(tour: str = "atp") -> pd.DataFrame:
     with db.connect() as conn:
         return pd.read_sql_query(
-            "SELECT date, surface, winner, loser FROM tennis_matches ORDER BY date",
-            conn,
+            "SELECT date, surface, winner, loser FROM tennis_matches "
+            "WHERE tour=? ORDER BY date",
+            conn, params=(tour,),
         )
 
 
-def fit_model(matches: pd.DataFrame | None = None) -> tennis_elo.TennisEloModel:
-    return tennis_elo.fit(matches if matches is not None else load_matches())
+def fit_model(matches: pd.DataFrame | None = None,
+              tour: str = "atp") -> tennis_elo.TennisEloModel:
+    return tennis_elo.fit(matches if matches is not None else load_matches(tour))
 
 
 def active_players(model, matches: pd.DataFrame, since: str = "2025-01-01",

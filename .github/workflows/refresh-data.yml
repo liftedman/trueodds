@@ -33,7 +33,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pandas numpy scipy requests python-dotenv scikit-learn
+        run: pip install pandas numpy scipy requests python-dotenv scikit-learn openpyxl
 
       - name: Ingest fresh data (each step tolerant of a single source failing)
         env:
@@ -45,6 +45,7 @@ jobs:
           python -m sports_model.main ingest-intl || true
           python -m sports_model.main ingest-nfl  || true
           python -m sports_model.main ingest-wnba || true
+          python -m sports_model.main ingest-wta  || true
           python -m sports_model.main crests      || true
 
       - name: Commit refreshed data

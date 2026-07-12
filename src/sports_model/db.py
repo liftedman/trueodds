@@ -203,6 +203,8 @@ _MIGRATIONS = [
     "ALTER TABLE football_matches ADD COLUMN away_corners INTEGER",
     "ALTER TABLE football_matches ADD COLUMN home_cards INTEGER",
     "ALTER TABLE football_matches ADD COLUMN away_cards INTEGER",
+    # Tennis tour (atp / wta); existing rows are ATP.
+    "ALTER TABLE tennis_matches ADD COLUMN tour TEXT DEFAULT 'atp'",
 ]
 
 

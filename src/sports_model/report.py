@@ -123,6 +123,13 @@ def _build_data() -> dict:
     summer_data = _build_summer_data()
     nbl_data = _build_bball("nbl", "NBL", title_field=8)
     ncaam_data = _build_bball("ncaam", "NCAA (M)", title_field=16)
+    tennis_atp = _build_tennis_data("atp")
+    tennis_wta = _build_tennis_data("wta")
+    tennis_tours = []
+    if tennis_atp:
+        tennis_tours.append({"key": "tennis", "name": "ATP"})
+    if tennis_wta:
+        tennis_tours.append({"key": "tennis_wta", "name": "WTA"})
     # Which basketball leagues to offer in the app's Basketball hub dropdown.
     # Off-season leagues return None and simply don't appear.
     basketball = []
@@ -147,7 +154,9 @@ def _build_data() -> dict:
         "ncaam": ncaam_data,
         "basketball_leagues": basketball,
         "nfl": _build_nfl_data(),
-        "tennis": _build_tennis_data(),
+        "tennis": tennis_atp,
+        "tennis_wta": tennis_wta,
+        "tennis_tours": tennis_tours,
         "cl": _build_cl_data(),
         "news": _safe_news(),
         "receipts": _safe_receipts(),
@@ -447,13 +456,13 @@ def _build_cl_data() -> dict | None:
     }
 
 
-def _build_tennis_data() -> dict | None:
-    """ATP surface-aware Elo ratings for the in-browser tennis predictor."""
+def _build_tennis_data(tour: str = "atp") -> dict | None:
+    """Surface-aware Elo ratings for a tennis tour (atp / wta)."""
     from .models import tennis as tennis_mod
 
     try:
-        matches = tennis_mod.load_matches()
-        model = tennis_mod.fit_model(matches)
+        matches = tennis_mod.load_matches(tour)
+        model = tennis_mod.fit_model(matches, tour=tour)
         players = tennis_mod.active_players(model, matches)
     except Exception:
         return None

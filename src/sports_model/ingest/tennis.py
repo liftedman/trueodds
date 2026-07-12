@@ -19,8 +19,8 @@ _YEARS = list(range(2018, 2027))   # 2018 .. 2026
 _TIMEOUT = 60
 
 _INSERT = """
-INSERT INTO tennis_matches (date, surface, winner, loser, tourney)
-VALUES (:date, :surface, :winner, :loser, :tourney)
+INSERT INTO tennis_matches (date, surface, winner, loser, tourney, tour)
+VALUES (:date, :surface, :winner, :loser, :tourney, 'atp')
 ON CONFLICT (date, winner, loser, tourney) DO NOTHING
 """
 

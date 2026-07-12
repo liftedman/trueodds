@@ -124,6 +124,12 @@ def cmd_ingest_tennis() -> None:
     tennis.ingest_all()
 
 
+def cmd_ingest_wta() -> None:
+    from .ingest import tennis_wta
+
+    tennis_wta.ingest_all()
+
+
 def cmd_tennis() -> None:
     from .models import tennis
 
@@ -348,6 +354,7 @@ _COMMANDS = {
     "ingest-wnba": cmd_ingest_wnba,
     "nba": cmd_nba,
     "ingest-tennis": cmd_ingest_tennis,
+    "ingest-wta": cmd_ingest_wta,
     "tennis": cmd_tennis,
     "cl": cmd_cl,
     "wc": cmd_wc,

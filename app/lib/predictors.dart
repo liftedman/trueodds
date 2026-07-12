@@ -827,17 +827,47 @@ class TennisTab extends StatefulWidget {
 }
 
 class _TennisTabState extends State<TennisTab> {
-  late Map tennis = widget.data['tennis'] as Map;
-  late List players = tennis['players'] as List;
-  late Map<String, Map> byName = {for (final p in players) p['name'] as String: p as Map};
-  late List<String> names = byName.keys.toList()..sort();
-  late String a = (players.first)['name'] as String;
-  late String b = (players.length > 1 ? players[1] : players.first)['name'] as String;
+  late final List<Map> _tours = (((widget.data['tennis_tours'] as List?) ??
+          const [{'key': 'tennis', 'name': 'ATP'}]))
+      .cast<Map>()
+      .where((t) => widget.data[t['key']] != null)
+      .toList();
+  late String _key = _tours.isNotEmpty ? _tours.first['key'] as String : 'tennis';
+  String a = '', b = '';
   String surface = 'Hard';
+
+  Map get tennis => widget.data[_key] as Map;
+  List get players => tennis['players'] as List;
+  Map<String, Map> get byName =>
+      {for (final p in players) p['name'] as String: p as Map};
+  List<String> get names => byName.keys.toList()..sort();
+
+  @override
+  void initState() {
+    super.initState();
+    _resetPlayers();
+  }
+
+  void _resetPlayers() {
+    final n = names;
+    a = n.first;
+    b = n.length > 1 ? n[1] : n.first;
+  }
+
+  void _setTourByName(String? nm) {
+    final m = _tours.firstWhere((t) => t['name'] == nm, orElse: () => _tours.first);
+    setState(() {
+      _key = m['key'] as String;
+      _resetPlayers();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
+    final nm = names;
+    if (!nm.contains(a)) a = nm.first;
+    if (!nm.contains(b)) b = nm.length > 1 ? nm[1] : nm.first;
     final pa = Predict.tennis(tennis, byName[a]!, byName[b]!, surface);
     final fav = pa >= .5 ? pa : 1 - pa;
     final favName = pa >= .5 ? a : b;
@@ -862,6 +892,11 @@ class _TennisTabState extends State<TennisTab> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             children: [
       _card(context, [
+        if (_tours.length > 1) ...[
+          Picker('Tour', _tours.firstWhere((t) => t['key'] == _key)['name'] as String,
+              [for (final t in _tours) t['name'] as String], _setTourByName),
+          const SizedBox(height: 12),
+        ],
         Row(children: [
           Expanded(child: Picker('Player A', a, names, (v) => setState(() => a = v!))),
           const SizedBox(width: 12),
