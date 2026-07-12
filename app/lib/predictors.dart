@@ -550,6 +550,57 @@ class _BasketballTabState extends State<BasketballTab> {
     });
   }
 
+  /// "Title chances" card — championship % per team (Monte-Carlo from ratings).
+  List<Widget> _titleRace(BuildContext c, List<Map> odds, Color accent) {
+    final cs = Theme.of(c).colorScheme;
+    final top = odds.take(8).toList();
+    final maxPct = top.isEmpty ? 1.0 : (top.first['pct'] as num).toDouble();
+    return [
+      Text('TITLE CHANCES',
+          style: TextStyle(
+              fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700,
+              color: cs.onSurface.withOpacity(.6))),
+      const SizedBox(height: 2),
+      Text('Simulated championship odds — if the playoffs were seeded by current rating',
+          style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(.6), height: 1.35)),
+      const SizedBox(height: 12),
+      ...top.map((o) {
+        final pct = (o['pct'] as num).toDouble();
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(children: [
+            SizedBox(
+                width: 130,
+                child: Text('${o['name']}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Container(
+                  height: 14,
+                  color: cs.onSurface.withOpacity(.07),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (pct / maxPct).clamp(0.02, 1.0),
+                    child: Container(color: accent),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+                width: 46,
+                child: Text('${(pct * 100).toStringAsFixed(pct >= .1 ? 0 : 1)}%',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontFeatures: [FontFeature.tabularFigures()]))),
+          ]),
+        );
+      }),
+    ];
+  }
+
   Widget _exhibitionBanner(BuildContext c) {
     final cs = Theme.of(c).colorScheme;
     return Container(
@@ -655,6 +706,8 @@ class _BasketballTabState extends State<BasketballTab> {
       _card(context, [BeatModelPick(
           home: home, away: away, sport: _key, allowDraw: false,
           modelPick: r.homeWin >= r.awayWin ? 'H' : 'A', accent: accent)]),
+      if (((lg['title_odds'] as List?) ?? const []).isNotEmpty)
+        _card(context, _titleRace(context, (lg['title_odds'] as List).cast<Map>(), accent)),
       _card(context, [_eloRatings(context, _teams)]),
       _card(context, _fixturesSection(
           context, (lg['fixtures'] as List?) ?? const [], accent)),

@@ -267,7 +267,16 @@ def _build_nba_data() -> dict | None:
         "total_std": round(model.total_std, 2),
         "teams": nba_mod.team_ratings(model),  # [{abbr, name, elo}] ranked
         "fixtures": fixtures,
+        "title_odds": _safe_title_odds(model.ratings, nba_mod.TEAM_NAMES, 16),
     }
+
+
+def _safe_title_odds(ratings, names, field_size) -> list[dict]:
+    try:
+        from .models import title_odds
+        return title_odds.title_odds(ratings, names, field_size=field_size)
+    except Exception:
+        return []
 
 
 def _build_wnba_data() -> dict | None:
@@ -293,6 +302,7 @@ def _build_wnba_data() -> dict | None:
         "total_std": round(model.total_std, 2),
         "teams": wnba_mod.team_ratings(model),
         "fixtures": fixtures,
+        "title_odds": _safe_title_odds(model.ratings, wnba_mod.TEAM_NAMES, 8),
     }
 
 
