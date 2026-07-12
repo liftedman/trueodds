@@ -299,6 +299,26 @@ class Predict {
     };
   }
 
+  /// Per-team points over/under. A team's score ~ Normal(projected, σ) where
+  /// σ = total_std/√2 (splitting the total's spread between the two teams).
+  /// Labels use each team's short name (e.g. "Aces o84.5").
+  static Map<String, double> teamTotals(Map m, double eloH, double eloA,
+      bool neutral, String home, String away,
+      {int outHome = 0, int outAway = 0}) {
+    final res = nba(m, eloH, eloA, neutral, outHome: outHome, outAway: outAway);
+    final std = _d(m['total_std']) / sqrt(2);
+    double over(double proj, double line) => 1 - _ncdf((line - proj) / std);
+    String short(String n) => n.split(' ').last;
+    double base(double p) => p.floorToDouble() + 0.5;
+    final hb = base(res.projHome), ab = base(res.projAway);
+    return {
+      '${short(home)} o${(hb - 4).toStringAsFixed(1)}': over(res.projHome, hb - 4),
+      '${short(home)} o${(hb + 4).toStringAsFixed(1)}': over(res.projHome, hb + 4),
+      '${short(away)} o${(ab - 4).toStringAsFixed(1)}': over(res.projAway, ab - 4),
+      '${short(away)} o${(ab + 4).toStringAsFixed(1)}': over(res.projAway, ab + 4),
+    };
+  }
+
   /// NFL — win prob + projected score. Same Elo-margin model as the NBA one.
   static ({double homeWin, double awayWin, double projHome, double projAway})
       nfl(Map nfl, double eloH, double eloA, bool neutral,

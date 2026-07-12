@@ -351,6 +351,9 @@ class MatchDetailScreen extends StatelessWidget {
       MarketChips(Predict.nbaSpread(nba, eloH, eloA, false), accent),
       _label(c, 'Total points'),
       MarketChips(Predict.totalsAround(nba), accent),
+      _label(c, 'Team totals'),
+      MarketChips(
+          Predict.teamTotals(nba, eloH, eloA, false, home, away), accent),
       if (log != null && log.isNotEmpty) ...[
         _label(c, 'Recent form'),
         _form(c, home, teamForm(log, home)),

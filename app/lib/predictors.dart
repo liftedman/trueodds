@@ -702,6 +702,10 @@ class _BasketballTabState extends State<BasketballTab> {
                 outHome: outHome, outAway: outAway),
             accent),
         _chips(context, 'Total points', Predict.totalsAround(lg), accent),
+        _chips(context, 'Team totals',
+            Predict.teamTotals(lg, elo[home]!, elo[away]!, false, home, away,
+                outHome: outHome, outAway: outAway),
+            accent),
       ]),
       _card(context, [BeatModelPick(
           home: home, away: away, sport: _key, allowDraw: false,
