@@ -121,14 +121,18 @@ def _build_data() -> dict:
     nba_data = _build_nba_data()
     wnba_data = _build_wnba_data()
     summer_data = _build_summer_data()
+    nbl_data = _build_bball("nbl", "NBL", title_field=8)
+    ncaam_data = _build_bball("ncaam", "NCAA (M)", title_field=16)
     # Which basketball leagues to offer in the app's Basketball hub dropdown.
+    # Off-season leagues return None and simply don't appear.
     basketball = []
-    if nba_data:
-        basketball.append({"key": "nba", "name": "NBA"})
-    if wnba_data:
-        basketball.append({"key": "wnba", "name": "WNBA"})
-    if summer_data:
-        basketball.append({"key": "summer", "name": "Summer League"})
+    for key, block, label in [
+        ("nba", nba_data, "NBA"), ("wnba", wnba_data, "WNBA"),
+        ("summer", summer_data, "Summer League"),
+        ("nbl", nbl_data, "NBL"), ("ncaam", ncaam_data, "NCAA (M)"),
+    ]:
+        if block:
+            basketball.append({"key": key, "name": label})
 
     return {
         "generated": date.today().isoformat(),
@@ -139,6 +143,8 @@ def _build_data() -> dict:
         "nba": nba_data,
         "wnba": wnba_data,
         "summer": summer_data,
+        "nbl": nbl_data,
+        "ncaam": ncaam_data,
         "basketball_leagues": basketball,
         "nfl": _build_nfl_data(),
         "tennis": _build_tennis_data(),
@@ -330,6 +336,37 @@ def _build_summer_data() -> dict | None:
         "total_std": round(model.total_std, 2),
         "teams": summer_mod.team_ratings(model),
         "fixtures": fixtures,
+    }
+
+
+def _build_bball(league: str, name: str, title_field: int = 8) -> dict | None:
+    """Generic ESPN basketball league (NBL, NCAA…). None if no games yet."""
+    from .models import bball as bball_mod
+
+    try:
+        games = bball_mod.load_games(league)
+        if games.empty:
+            return None
+        model = bball_mod.fit_model(league)
+    except Exception:
+        return None
+    if not model.ratings:
+        return None
+    try:
+        fixtures = bball_mod.fixtures(league, model)
+    except Exception:
+        fixtures = []
+    return {
+        "name": name,
+        "home_adv": round(model.home_adv, 1),
+        "margin_slope": round(model.margin_slope, 5),
+        "mean_total": round(model.mean_total, 2),
+        "margin_std": round(model.margin_std, 2),
+        "total_std": round(model.total_std, 2),
+        "teams": bball_mod.team_ratings(model, league),
+        "fixtures": fixtures,
+        "title_odds": _safe_title_odds(
+            model.ratings, bball_mod.team_names(league), title_field),
     }
 
 

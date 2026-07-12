@@ -17,6 +17,8 @@ _URL = {
     "nba": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
     "wnba": "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard",
     "summer": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba-summer-las-vegas/scoreboard",
+    "nbl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nbl/scoreboard",
+    "ncaam": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
     "nfl": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
 }
 
@@ -27,13 +29,16 @@ _ALIAS = {
             "UTAH": "UTA", "WSH": "WAS"},
     "wnba": {"CONN": "CON", "GSV": "GS", "WSH": "WAS"},
     "summer": {},
+    "nbl": {},
+    "ncaam": {},
     "nfl": {"LAR": "LA", "WSH": "WAS", "JAC": "JAX"},
 }
 
 _TIMEOUT = 15
 
 # (regulation periods, seconds per period) for the live-clock fraction.
-_PERIODS = {"nba": (4, 720), "wnba": (4, 600), "summer": (4, 600), "nfl": (4, 900)}
+_PERIODS = {"nba": (4, 720), "wnba": (4, 600), "summer": (4, 600),
+            "nbl": (4, 600), "ncaam": (2, 1200), "nfl": (4, 900)}
 
 
 def _frac_left(sport: str, status: dict) -> float | None:

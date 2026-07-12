@@ -88,9 +88,8 @@ class MatchDetailScreen extends StatelessWidget {
   }
 
   List<Widget> _body(BuildContext c, Color accent) {
-    if (sportKey == 'nba' || sportKey == 'wnba' || sportKey == 'summer') {
-      return _basketball(c, accent);
-    }
+    const basketball = {'nba', 'wnba', 'summer', 'nbl', 'ncaam', 'ncaaw'};
+    if (basketball.contains(sportKey)) return _basketball(c, accent);
     if (sportKey == 'nfl') return _nfl(c, accent);
     if (sportKey == 'clubs') return _clubs(c, accent);
     return _elo(c, accent); // wc / cl

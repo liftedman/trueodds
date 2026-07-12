@@ -31,6 +31,8 @@ class _TodayScreenState extends State<TodayScreen> {
     add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
     add('wnba', (data['wnba'] as Map?)?['fixtures'] as List?);
     add('summer', (data['summer'] as Map?)?['fixtures'] as List?);
+    add('nbl', (data['nbl'] as Map?)?['fixtures'] as List?);
+    add('ncaam', (data['ncaam'] as Map?)?['fixtures'] as List?);
     add('nfl', (data['nfl'] as Map?)?['fixtures'] as List?);
     return out;
   }
@@ -221,6 +223,9 @@ const _sportBadge = {
   'nba': ('🏀', 'NBA'),
   'wnba': ('🏀', 'WNBA'),
   'summer': ('🏀', 'Summer Lg'),
+  'nbl': ('🏀', 'NBL'),
+  'ncaam': ('🏀', 'NCAA'),
+  'ncaaw': ('🏀', 'NCAA W'),
   'nfl': ('🏈', 'NFL'),
 };
 

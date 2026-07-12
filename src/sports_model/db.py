@@ -149,6 +149,15 @@ CREATE TABLE IF NOT EXISTS bball_games (
 
 CREATE INDEX IF NOT EXISTS idx_bball_league ON bball_games (league);
 CREATE INDEX IF NOT EXISTS idx_bball_date ON bball_games (date);
+
+-- Team display names per basketball league (captured from ESPN at ingest), so
+-- leagues with many teams (e.g. NCAA) need no hardcoded name map.
+CREATE TABLE IF NOT EXISTS bball_teams (
+    league  TEXT NOT NULL,
+    abbr    TEXT NOT NULL,
+    name    TEXT NOT NULL,
+    PRIMARY KEY (league, abbr)
+);
 """
 
 
