@@ -274,7 +274,22 @@ def _build_nba_data() -> dict | None:
         "teams": nba_mod.team_ratings(model),  # [{abbr, name, elo}] ranked
         "fixtures": fixtures,
         "title_odds": _safe_title_odds(model.ratings, nba_mod.TEAM_NAMES, 16),
+        "log": _bball_log(nba_mod.load_games(), nba_mod.TEAM_NAMES),
     }
+
+
+def _bball_log(df, names: dict, limit: int = 700) -> list:
+    """Recent games as [date, home_name, away_name, home_pts, away_pts] for the
+    app's form + head-to-head display (context only)."""
+    import pandas as pd
+    sub = df.tail(limit)
+    out = []
+    for r in sub.itertuples(index=False):
+        if pd.isna(r.home_pts) or pd.isna(r.away_pts):
+            continue
+        out.append([r.date, names.get(r.home, r.home), names.get(r.away, r.away),
+                    int(r.home_pts), int(r.away_pts)])
+    return out
 
 
 def _safe_title_odds(ratings, names, field_size) -> list[dict]:
@@ -309,6 +324,7 @@ def _build_wnba_data() -> dict | None:
         "teams": wnba_mod.team_ratings(model),
         "fixtures": fixtures,
         "title_odds": _safe_title_odds(model.ratings, wnba_mod.TEAM_NAMES, 8),
+        "log": _bball_log(wnba_mod.load_games(), wnba_mod.TEAM_NAMES),
     }
 
 
@@ -336,6 +352,7 @@ def _build_summer_data() -> dict | None:
         "total_std": round(model.total_std, 2),
         "teams": summer_mod.team_ratings(model),
         "fixtures": fixtures,
+        "log": _bball_log(summer_mod.load_games(), summer_mod.TEAM_NAMES),
     }
 
 
@@ -367,6 +384,7 @@ def _build_bball(league: str, name: str, title_field: int = 8) -> dict | None:
         "fixtures": fixtures,
         "title_odds": _safe_title_odds(
             model.ratings, bball_mod.team_names(league), title_field),
+        "log": _bball_log(games, bball_mod.team_names(league)),
     }
 
 

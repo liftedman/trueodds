@@ -317,6 +317,7 @@ class MatchDetailScreen extends StatelessWidget {
     final eloH = elo[home] ?? 1500, eloA = elo[away] ?? 1500;
     final r = Predict.nba(nba, eloH, eloA, false);
     final live = _bballLive(c, accent, nba, eloH, eloA);
+    final log = nba['log'] as List?;
     final fav = r.homeWin > r.awayWin ? r.homeWin : r.awayWin;
     final favName = r.homeWin >= r.awayWin ? home : away;
     final margin = (r.projHome - r.projAway).abs().round();
@@ -350,6 +351,22 @@ class MatchDetailScreen extends StatelessWidget {
       MarketChips(Predict.nbaSpread(nba, eloH, eloA, false), accent),
       _label(c, 'Total points'),
       MarketChips(Predict.totalsAround(nba), accent),
+      if (log != null && log.isNotEmpty) ...[
+        _label(c, 'Recent form'),
+        _form(c, home, teamForm(log, home)),
+        _form(c, away, teamForm(log, away)),
+        _label(c, 'Recent meetings'),
+        ...() {
+          final h2h = h2hMeetings(log, home, away);
+          return h2h.isEmpty
+              ? [_muted(c, 'No recent meetings.')]
+              : h2h.map((m) => _muted(c, m)).toList();
+        }(),
+        const Text(
+            '\nContext only — head-to-head has no predictive value in our '
+            'tests, so it doesn\'t affect the prediction above.',
+            style: TextStyle(fontSize: 11)),
+      ],
       BeatModelPick(
         home: home,
         away: away,
