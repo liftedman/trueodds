@@ -16,6 +16,7 @@ from .. import config
 _URL = {
     "nba": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
     "wnba": "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard",
+    "summer": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba-summer-las-vegas/scoreboard",
     "nfl": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
 }
 
@@ -25,10 +26,35 @@ _ALIAS = {
     "nba": {"GS": "GSW", "NO": "NOP", "NY": "NYK", "SA": "SAS",
             "UTAH": "UTA", "WSH": "WAS"},
     "wnba": {"CONN": "CON", "GSV": "GS", "WSH": "WAS"},
+    "summer": {},
     "nfl": {"LAR": "LA", "WSH": "WAS", "JAC": "JAX"},
 }
 
 _TIMEOUT = 15
+
+# (regulation periods, seconds per period) for the live-clock fraction.
+_PERIODS = {"nba": (4, 720), "wnba": (4, 600), "summer": (4, 600), "nfl": (4, 900)}
+
+
+def _frac_left(sport: str, status: dict) -> float | None:
+    """Fraction of the game still to play (0..1) from ESPN's period + clock."""
+    nper, plen = _PERIODS.get(sport, (4, 720))
+    period = status.get("period") or 1
+    clock = status.get("clock")
+    if not isinstance(clock, (int, float)):  # fall back to "M:SS"
+        disp = status.get("displayClock") or ""
+        if ":" in disp:
+            try:
+                mm, ss = disp.split(":")
+                clock = int(mm) * 60 + float(ss)
+            except ValueError:
+                clock = 0
+        else:
+            clock = 0
+    if period > nper:  # overtime — treat as the dying seconds
+        return max(0.0, min(1.0, float(clock) / (nper * plen)))
+    secs_left = float(clock) + max(0, nper - period) * plen
+    return max(0.0, min(1.0, secs_left / (nper * plen)))
 
 
 def _parse_utc(s: str) -> datetime | None:
@@ -76,10 +102,12 @@ def fixtures(sport: str, model, team_names: dict[str, str], days: int = 6) -> li
             continue
         ha = alias.get(home["team"]["abbreviation"], home["team"]["abbreviation"])
         aa = alias.get(away["team"]["abbreviation"], away["team"]["abbreviation"])
-        state = (ev.get("status", {}).get("type", {}) or {}).get("state")
+        status = ev.get("status", {}) or {}
+        state = (status.get("type", {}) or {}).get("state")
         if state == "post":
             continue  # finished — don't surface
         live = state == "in"
+        frac_left = _frac_left(sport, status) if live else None
 
         ko = _parse_utc(ev.get("date", ""))
         if ko is None:
@@ -97,8 +125,9 @@ def fixtures(sport: str, model, team_names: dict[str, str], days: int = 6) -> li
             "date": local.strftime("%Y-%m-%d"),
             "time": local.strftime("%H:%M"),
             "live": live,
-            "status": (ev.get("status", {}).get("type", {}) or {}).get("shortDetail", ""),
+            "status": (status.get("type", {}) or {}).get("shortDetail", ""),
             "score": score,
+            "frac_left": frac_left,
             "home": team_names.get(ha, ha),
             "away": team_names.get(aa, aa),
             "home_win": round(p["home_win"], 3),

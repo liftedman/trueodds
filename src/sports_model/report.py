@@ -120,12 +120,15 @@ def _build_data() -> dict:
 
     nba_data = _build_nba_data()
     wnba_data = _build_wnba_data()
+    summer_data = _build_summer_data()
     # Which basketball leagues to offer in the app's Basketball hub dropdown.
     basketball = []
     if nba_data:
         basketball.append({"key": "nba", "name": "NBA"})
     if wnba_data:
         basketball.append({"key": "wnba", "name": "WNBA"})
+    if summer_data:
+        basketball.append({"key": "summer", "name": "Summer League"})
 
     return {
         "generated": date.today().isoformat(),
@@ -135,6 +138,7 @@ def _build_data() -> dict:
         "wc": _build_wc_data(),
         "nba": nba_data,
         "wnba": wnba_data,
+        "summer": summer_data,
         "basketball_leagues": basketball,
         "nfl": _build_nfl_data(),
         "tennis": _build_tennis_data(),
@@ -288,6 +292,33 @@ def _build_wnba_data() -> dict | None:
         "margin_std": round(model.margin_std, 2),
         "total_std": round(model.total_std, 2),
         "teams": wnba_mod.team_ratings(model),
+        "fixtures": fixtures,
+    }
+
+
+def _build_summer_data() -> dict | None:
+    """NBA Summer League — flagged as an exhibition (low-confidence)."""
+    from .models import summer as summer_mod
+
+    try:
+        model = summer_mod.fit_model()
+    except Exception:
+        return None
+    if not model.ratings:
+        return None
+    try:
+        fixtures = summer_mod.fixtures(model)
+    except Exception:
+        fixtures = []
+    return {
+        "name": "Summer League",
+        "exhibition": True,  # app shows a low-confidence banner
+        "home_adv": round(model.home_adv, 1),
+        "margin_slope": round(model.margin_slope, 5),
+        "mean_total": round(model.mean_total, 2),
+        "margin_std": round(model.margin_std, 2),
+        "total_std": round(model.total_std, 2),
+        "teams": summer_mod.team_ratings(model),
         "fixtures": fixtures,
     }
 

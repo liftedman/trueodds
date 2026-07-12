@@ -88,7 +88,9 @@ class MatchDetailScreen extends StatelessWidget {
   }
 
   List<Widget> _body(BuildContext c, Color accent) {
-    if (sportKey == 'nba' || sportKey == 'wnba') return _basketball(c, accent);
+    if (sportKey == 'nba' || sportKey == 'wnba' || sportKey == 'summer') {
+      return _basketball(c, accent);
+    }
     if (sportKey == 'nfl') return _nfl(c, accent);
     if (sportKey == 'clubs') return _clubs(c, accent);
     return _elo(c, accent); // wc / cl
@@ -261,11 +263,61 @@ class MatchDetailScreen extends StatelessWidget {
     return out;
   }
 
+  /// Live in-play win-probability block for a basketball game, or null.
+  Widget? _bballLive(BuildContext c, Color accent, Map nba, double eloH, double eloA) {
+    final f = fixture;
+    if (f == null || f['live'] != true || f['frac_left'] == null) return null;
+    final sc = _parseScore();
+    if (sc == null) return null;
+    final frac = (f['frac_left'] as num).toDouble();
+    final lp = Predict.inPlayBasketball(nba, eloH, eloA, sc.$1, sc.$2, frac);
+    final curve = Predict.inPlayBasketballCurve(nba, eloH, eloA, sc.$1, sc.$2, frac);
+    final cs = Theme.of(c).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5484D).withOpacity(.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5484D).withOpacity(.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('● LIVE',
+              style: TextStyle(
+                  color: Color(0xFFE5484D), fontWeight: FontWeight.w800, fontSize: 13)),
+          const SizedBox(width: 8),
+          Text('${f['status'] ?? ''}',
+              style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(.6))),
+          const Spacer(),
+          Text('${sc.$1} – ${sc.$2}',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        ]),
+        const SizedBox(height: 4),
+        Text('Live win probability — updates with the score and the clock',
+            style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(.6))),
+        const SizedBox(height: 10),
+        ProbBar(home, lp.home, lp.home >= lp.away, accent),
+        ProbBar(away, lp.away, lp.away > lp.home, accent),
+        const SizedBox(height: 12),
+        Row(children: [
+          Text('If lead holds',
+              style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(.6))),
+          const SizedBox(width: 10),
+          Expanded(child: Sparkline(curve, accent)),
+          const SizedBox(width: 8),
+          Text('Final', style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(.6))),
+        ]),
+      ]),
+    );
+  }
+
   List<Widget> _basketball(BuildContext c, Color accent) {
     final nba = data[sportKey] as Map;
     final elo = _eloMap(nba['teams'] as List);
     final eloH = elo[home] ?? 1500, eloA = elo[away] ?? 1500;
     final r = Predict.nba(nba, eloH, eloA, false);
+    final live = _bballLive(c, accent, nba, eloH, eloA);
     final fav = r.homeWin > r.awayWin ? r.homeWin : r.awayWin;
     final favName = r.homeWin >= r.awayWin ? home : away;
     final margin = (r.projHome - r.projAway).abs().round();
@@ -284,6 +336,8 @@ class MatchDetailScreen extends StatelessWidget {
       Reason(Icons.home_outlined, 'Home-court advantage is applied to $home.'),
     ];
     return [
+      if (live != null) live,
+      if (live != null) _label(c, 'Pre-game model'),
       Center(child: ConfidenceBadge(fav)),
       ConfidenceNote(fav),
       WhyThis(reasons),

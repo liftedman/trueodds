@@ -167,3 +167,23 @@ class _CurvePainter extends CustomPainter {
   @override
   bool shouldRepaint(_CurvePainter old) => old.pts != pts;
 }
+
+/// A small reusable win-probability sparkline (a curve of P(home) over time,
+/// with a 50% reference line). Used by the football and basketball live blocks.
+class Sparkline extends StatelessWidget {
+  final List<double> points;
+  final Color color;
+  final double height;
+  const Sparkline(this.points, this.color, {this.height = 34, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: CustomPaint(
+        painter: _CurvePainter(
+            points, color, Theme.of(context).colorScheme.onSurface.withOpacity(.12)),
+      ),
+    );
+  }
+}

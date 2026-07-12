@@ -256,6 +256,37 @@ class Predict {
     };
   }
 
+  /// In-play win probability for a basketball game. Projects the final margin
+  /// as (current margin + expected remaining margin) and firms up as the clock
+  /// winds down (spread shrinks with the square root of time left).
+  static ({double home, double away}) inPlayBasketball(Map m, double eloH,
+      double eloA, int homeScore, int awayScore, double fracLeft) {
+    final dr = eloH - eloA + _d(m['home_adv']);
+    final expMargin = _d(m['margin_slope']) * dr;
+    final curMargin = (homeScore - awayScore).toDouble();
+    if (fracLeft <= 0.0) {
+      final h = curMargin > 0 ? 1.0 : (curMargin < 0 ? 0.0 : 0.5);
+      return (home: h, away: 1 - h);
+    }
+    final proj = curMargin + expMargin * fracLeft;
+    final sd = _d(m['margin_std']) * sqrt(fracLeft);
+    final pHome = (1 - _ncdf((0 - proj) / sd)).clamp(0.0, 1.0);
+    return (home: pHome, away: 1 - pHome);
+  }
+
+  /// P(home win) sampled from now (fracLeft) to full time, holding the current
+  /// score — the "if the lead holds" curve for the live block.
+  static List<double> inPlayBasketballCurve(Map m, double eloH, double eloA,
+      int homeScore, int awayScore, double fracLeft) {
+    const steps = 8;
+    return [
+      for (var i = 0; i <= steps; i++)
+        inPlayBasketball(m, eloH, eloA, homeScore, awayScore,
+                fracLeft * (1 - i / steps))
+            .home,
+    ];
+  }
+
   /// Total-points over lines derived from a league's own average total, so the
   /// same code gives sensible lines for the NBA (~225) and the WNBA (~160).
   static Map<String, double> totalsAround(Map m) {

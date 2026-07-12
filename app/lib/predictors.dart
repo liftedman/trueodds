@@ -550,6 +550,30 @@ class _BasketballTabState extends State<BasketballTab> {
     });
   }
 
+  Widget _exhibitionBanner(BuildContext c) {
+    final cs = Theme.of(c).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: cs.primary, width: 3)),
+      ),
+      child: Row(children: [
+        Icon(Icons.info_outline, size: 18, color: cs.onSurface.withOpacity(.6)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Exhibition — Summer League rosters are prospects, not full squads, '
+            'over just a few games, so treat these as low-confidence.',
+            style: TextStyle(fontSize: 12, height: 1.35, color: cs.onSurface.withOpacity(.7)),
+          ),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
@@ -584,6 +608,7 @@ class _BasketballTabState extends State<BasketballTab> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             children: [
+      if (lg['exhibition'] == true) _exhibitionBanner(context),
       _card(context, [
         if (_leagues.length > 1) ...[
           Picker('League', _leagues.firstWhere((l) => l['key'] == _key)['name'] as String,

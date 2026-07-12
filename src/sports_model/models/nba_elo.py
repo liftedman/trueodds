@@ -90,8 +90,14 @@ def fit(games: pd.DataFrame) -> NBAEloModel:
         exp_home = 1.0 / (1.0 + 10 ** (-dr / 400.0))
 
         hp, ap = int(r.home_pts), int(r.away_pts)
-        actual = 1.0 if hp > ap else 0.0
-        delta = _K * (actual - exp_home)
+        actual = 1.0 if hp > ap else (0.5 if hp == ap else 0.0)
+        # Margin-of-victory multiplier (FiveThirtyEight's formula): a big win
+        # moves ratings more than a narrow one, with an autocorrelation term
+        # (divide by the winner's rating edge) so favourites can't run away.
+        margin = hp - ap
+        elo_diff_w = dr if margin > 0 else -dr
+        mov = ((abs(margin) + 3) ** 0.8) / (7.5 + 0.006 * elo_diff_w)
+        delta = _K * mov * (actual - exp_home)
         ratings[r.home] = rh + delta
         ratings[r.away] = ra - delta
 

@@ -17,7 +17,7 @@ _TIMEOUT = 20
 
 # league key -> ESPN path. (NBA stays on nba_api / nba_games; this is for the
 # ESPN-sourced leagues.)
-LEAGUES = {"wnba": "wnba"}
+LEAGUES = {"wnba": "wnba", "summer": "nba-summer-las-vegas"}
 
 _INSERT = """
 INSERT INTO bball_games (league, game_id, date, season, home, away, home_pts, away_pts)

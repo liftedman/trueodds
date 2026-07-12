@@ -30,6 +30,7 @@ class _TodayScreenState extends State<TodayScreen> {
     add('cl', (data['cl'] as Map?)?['fixtures'] as List?);
     add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
     add('wnba', (data['wnba'] as Map?)?['fixtures'] as List?);
+    add('summer', (data['summer'] as Map?)?['fixtures'] as List?);
     add('nfl', (data['nfl'] as Map?)?['fixtures'] as List?);
     return out;
   }
@@ -212,11 +213,35 @@ class _TodayScreenState extends State<TodayScreen> {
       );
 }
 
+/// sportKey -> (emoji, short label) for the per-tile sport badge.
+const _sportBadge = {
+  'clubs': ('⚽', 'Football'),
+  'wc': ('🏆', 'World Cup'),
+  'cl': ('⭐', 'UCL'),
+  'nba': ('🏀', 'NBA'),
+  'wnba': ('🏀', 'WNBA'),
+  'summer': ('🏀', 'Summer Lg'),
+  'nfl': ('🏈', 'NFL'),
+};
+
 class _MatchTile extends StatelessWidget {
   final Map data;
   final String sportKey;
   final Map f;
   const _MatchTile(this.data, this.sportKey, this.f);
+
+  Widget _sportChip(Color accent) {
+    final b = _sportBadge[sportKey] ?? ('•', sportKey.toUpperCase());
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+          color: accent.withOpacity(.15),
+          borderRadius: BorderRadius.circular(6)),
+      child: Text('${b.$1} ${b.$2}',
+          style: TextStyle(
+              fontSize: 10.5, fontWeight: FontWeight.w700, color: accent)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -252,11 +277,25 @@ class _MatchTile extends StatelessWidget {
         leading: DuoAvatar(f['home'] as String, f['away'] as String),
         title: Text('${f['home']}  v  ${f['away']}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: live
-            ? Text('● LIVE${f['score'] != null ? '  ${f['score']}' : ''}',
-                style: const TextStyle(
-                    color: Color(0xFFE5484D), fontWeight: FontWeight.w700, fontSize: 12))
-            : Text('${f['date']}  ·  ${f['time']}', style: TextStyle(color: muted)),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(children: [
+            _sportChip(accent),
+            const SizedBox(width: 8),
+            Flexible(
+              child: live
+                  ? Text('● LIVE${f['score'] != null ? '  ${f['score']}' : ''}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Color(0xFFE5484D),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12))
+                  : Text('${f['date']}  ·  ${f['time']}',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: muted, fontSize: 12)),
+            ),
+          ]),
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,

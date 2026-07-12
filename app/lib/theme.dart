@@ -9,6 +9,7 @@ class AppTheme {
     'nba': Color(0xFF8B5CF6),     // purple
     'basketball': Color(0xFF8B5CF6), // purple (hub)
     'wnba': Color(0xFFF97316),    // orange
+    'summer': Color(0xFF06B6D4),  // cyan
     'nfl': Color(0xFFD97706),     // amber (pigskin)
     'tennis': Color(0xFF84CC16),  // lime
     'cl': Color(0xFFE5484D),      // red
