@@ -208,21 +208,25 @@ class BeatModelPick extends StatelessWidget {
             if (userPick != null) ...[
               const SizedBox(height: 10),
               Row(children: [
-                _tag(context, 'You', outcomeLabel(userPick, home, away), accent),
+                Expanded(
+                    child: _tag(context, 'You',
+                        outcomeLabel(userPick, home, away), accent)),
                 const SizedBox(width: 8),
-                _tag(context, 'Model', outcomeLabel(modelPick, home, away),
-                    cs.onSurface.withOpacity(.5)),
-                const Spacer(),
-                if (graded)
-                  Text(
-                      userPick == result ? '✓ you called it' : '✗ missed',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: userPick == result
-                              ? const Color(0xFF16B364)
-                              : const Color(0xFFE5484D))),
+                Expanded(
+                    child: _tag(context, 'Model',
+                        outcomeLabel(modelPick, home, away),
+                        cs.onSurface.withOpacity(.5))),
               ]),
+              if (graded) ...[
+                const SizedBox(height: 6),
+                Text(userPick == result ? '✓ you called it' : '✗ missed',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: userPick == result
+                            ? const Color(0xFF16B364)
+                            : const Color(0xFFE5484D))),
+              ],
             ],
           ]),
         );

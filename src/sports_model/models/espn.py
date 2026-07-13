@@ -71,6 +71,51 @@ def _parse_utc(s: str) -> datetime | None:
     return None
 
 
+def recent_results(sport: str, team_names: dict[str, str], days: int = 4) -> list[dict]:
+    """Recently finished games for `sport` (for grading user picks). Returns
+    [{sport, date, home, away, result, score}] with result H/A (D on a tie)."""
+    url = _URL.get(sport)
+    if not url:
+        return []
+    alias = _ALIAS.get(sport, {})
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+    now = datetime.now(timezone.utc)
+    out, seen = [], set()
+    for i in range(days):
+        day = (now - timedelta(days=i)).strftime("%Y%m%d")
+        try:
+            r = session.get(url, params={"dates": day}, timeout=_TIMEOUT)
+            r.raise_for_status()
+            events = r.json().get("events", [])
+        except (requests.RequestException, ValueError):
+            continue
+        for ev in events:
+            if ev.get("id") in seen:
+                continue
+            if (ev.get("status", {}).get("type", {}) or {}).get("state") != "post":
+                continue
+            try:
+                cs = ev["competitions"][0]["competitors"]
+                home = next(c for c in cs if c.get("homeAway") == "home")
+                away = next(c for c in cs if c.get("homeAway") == "away")
+                hp, ap = int(home.get("score")), int(away.get("score"))
+            except (KeyError, IndexError, StopIteration, TypeError, ValueError):
+                continue
+            seen.add(ev.get("id"))
+            ha = alias.get(home["team"]["abbreviation"], home["team"]["abbreviation"])
+            aa = alias.get(away["team"]["abbreviation"], away["team"]["abbreviation"])
+            out.append({
+                "sport": sport,
+                "date": (ev.get("date") or "")[:10],
+                "home": team_names.get(ha, ha),
+                "away": team_names.get(aa, aa),
+                "result": "H" if hp > ap else ("D" if hp == ap else "A"),
+                "score": f"{hp}-{ap}",
+            })
+    return out
+
+
 def fixtures(sport: str, model, team_names: dict[str, str], days: int = 6) -> list[dict]:
     """Upcoming + live games for `sport` over the next `days` days, with Elo
     predictions. Returns [] if ESPN is unreachable."""

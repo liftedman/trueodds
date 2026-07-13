@@ -204,12 +204,29 @@ def _safe_wc_receipts() -> dict | None:
 
 
 def _safe_results() -> list[dict]:
-    """Recently finished matches for grading user picks; never fatal."""
+    """Recently finished games across every pick-able sport, for grading user
+    picks. Each source is independently fault-tolerant."""
+    out: list[dict] = []
     try:
         from .models import football_data
-        return football_data.recent_results()
+        out += football_data.recent_results()  # World Cup
     except Exception:
-        return []
+        pass
+    try:
+        from .models import espn, nba, wnba, summer, nfl, bball
+        feeds = [
+            ("nba", nba.TEAM_NAMES), ("wnba", wnba.TEAM_NAMES),
+            ("summer", summer.TEAM_NAMES), ("nfl", nfl.TEAM_NAMES),
+            ("nbl", bball.team_names("nbl")), ("ncaam", bball.team_names("ncaam")),
+        ]
+        for sport, names in feeds:
+            try:
+                out += espn.recent_results(sport, names)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
 
 
 def _count_rates(code: str, seasons: list[str]) -> dict[str, dict]:
