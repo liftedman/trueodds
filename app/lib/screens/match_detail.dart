@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'beat_model.dart';
-import 'favorites.dart';
-import 'live_prob.dart';
-import 'predict.dart';
-import 'team_avatar.dart';
-import 'theme.dart';
-import 'trust.dart';
-import 'widgets.dart';
+import 'package:sports_model_app/services/beat_model.dart';
+import 'package:sports_model_app/services/favorites.dart';
+import 'package:sports_model_app/widgets/live_prob.dart';
+import 'package:sports_model_app/models/predict.dart';
+import 'package:sports_model_app/widgets/team_avatar.dart';
+import 'package:sports_model_app/widgets/theme.dart';
+import 'package:sports_model_app/widgets/trust.dart';
+import 'package:sports_model_app/widgets/widgets.dart';
 
 double _d(dynamic v) => (v as num).toDouble();
 

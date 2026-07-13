@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'config.dart';
+import 'package:sports_model_app/services/config.dart';
 
 /// Loads the latest prediction snapshot from Supabase, with a local cache so
 /// the app opens instantly and keeps working with no signal.

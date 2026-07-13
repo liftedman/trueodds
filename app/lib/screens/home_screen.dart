@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'beat_model.dart';
-import 'beat_model_screen.dart';
-import 'brand.dart';
-import 'favorites.dart';
-import 'match_detail.dart';
-import 'team_avatar.dart';
-import 'theme.dart';
+import 'package:sports_model_app/services/beat_model.dart';
+import 'package:sports_model_app/screens/beat_model_screen.dart';
+import 'package:sports_model_app/widgets/brand.dart';
+import 'package:sports_model_app/services/favorites.dart';
+import 'package:sports_model_app/screens/match_detail.dart';
+import 'package:sports_model_app/widgets/team_avatar.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 /// The "Today" feed — live + upcoming matches aggregated across every sport.
 class TodayScreen extends StatefulWidget {

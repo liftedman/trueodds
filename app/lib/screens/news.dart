@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'theme.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 Color _accentFor(String sport) =>
     AppTheme.sportAccent[sport == 'football' ? 'clubs' : sport] ??

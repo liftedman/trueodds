@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'about.dart';
-import 'api.dart';
-import 'beat_model.dart';
-import 'brand.dart';
-import 'crests.dart';
-import 'favorites.dart';
-import 'home_screen.dart';
-import 'news.dart';
-import 'onboarding.dart';
-import 'search.dart';
-import 'sports_screen.dart';
-import 'theme.dart';
+import 'package:sports_model_app/screens/about.dart';
+import 'package:sports_model_app/services/api.dart';
+import 'package:sports_model_app/services/beat_model.dart';
+import 'package:sports_model_app/widgets/brand.dart';
+import 'package:sports_model_app/services/crests.dart';
+import 'package:sports_model_app/services/favorites.dart';
+import 'package:sports_model_app/screens/home_screen.dart';
+import 'package:sports_model_app/screens/news.dart';
+import 'package:sports_model_app/screens/onboarding.dart';
+import 'package:sports_model_app/screens/search.dart';
+import 'package:sports_model_app/screens/sports_screen.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

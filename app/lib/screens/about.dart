@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'track_record.dart';
+import 'package:sports_model_app/screens/track_record.dart';
 
 /// The honesty layer — how it works, the real track record, and the data.
 class AboutTab extends StatelessWidget {

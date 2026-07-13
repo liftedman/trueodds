@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'beat_model.dart';
-import 'predict.dart';
-import 'theme.dart';
-import 'trust.dart';
-import 'widgets.dart';
+import 'package:sports_model_app/services/beat_model.dart';
+import 'package:sports_model_app/models/predict.dart';
+import 'package:sports_model_app/widgets/theme.dart';
+import 'package:sports_model_app/widgets/trust.dart';
+import 'package:sports_model_app/widgets/widgets.dart';
 
 part 'sports/clubs_tab.dart';
 part 'sports/elo_tab.dart';

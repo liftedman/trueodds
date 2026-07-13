@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'brand.dart';
-import 'predictors.dart';
-import 'theme.dart';
+import 'package:sports_model_app/widgets/brand.dart';
+import 'package:sports_model_app/predictors.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 const sportTabs = [
   ('clubs', '⚽ Clubs'),

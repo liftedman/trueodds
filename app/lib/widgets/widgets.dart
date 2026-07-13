@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'team_avatar.dart';
-import 'theme.dart';
+import 'package:sports_model_app/widgets/team_avatar.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 String pct(double v) => '${(v * 100).round()}%';
 String pct1(double v) => '${(v * 100).toStringAsFixed(1)}%';

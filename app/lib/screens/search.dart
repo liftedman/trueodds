@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'favorites.dart';
-import 'team_avatar.dart';
+import 'package:sports_model_app/services/favorites.dart';
+import 'package:sports_model_app/widgets/team_avatar.dart';
 
 const _label = {
   'clubs': 'Club', 'wc': 'World Cup', 'nba': 'NBA', 'tennis': 'Tennis', 'cl': 'UCL'

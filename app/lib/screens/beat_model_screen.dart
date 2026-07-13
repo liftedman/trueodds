@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'beat_model.dart';
+import 'package:sports_model_app/services/beat_model.dart';
 
 /// You vs the algorithm — running head-to-head, streak, and graded history.
 class BeatModelScreen extends StatelessWidget {

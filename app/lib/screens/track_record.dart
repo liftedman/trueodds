@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'theme.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 int _pct(num v) => (v * 100).round();
 

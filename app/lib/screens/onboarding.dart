@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'brand.dart';
+import 'package:sports_model_app/widgets/brand.dart';
 
 /// Persists whether the user has seen the first-run onboarding.
 class Onboarding {

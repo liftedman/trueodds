@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'crests.dart';
+import 'package:sports_model_app/services/crests.dart';
 
 /// Team avatar: shows the real crest when we have one, otherwise a stable
 /// colour-from-name monogram (so every team always has a mark).

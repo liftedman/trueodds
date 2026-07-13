@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'predict.dart';
-import 'widgets.dart';
+import 'package:sports_model_app/models/predict.dart';
+import 'package:sports_model_app/widgets/widgets.dart';
 
 const _liveRed = Color(0xFFE5484D);
 
