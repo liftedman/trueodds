@@ -212,20 +212,23 @@ def _safe_results() -> list[dict]:
         out += football_data.recent_results()  # World Cup
     except Exception:
         pass
-    try:
-        from .models import espn, nba, wnba, summer, nfl, bball
-        feeds = [
-            ("nba", nba.TEAM_NAMES), ("wnba", wnba.TEAM_NAMES),
-            ("summer", summer.TEAM_NAMES), ("nfl", nfl.TEAM_NAMES),
-            ("nbl", bball.team_names("nbl")), ("ncaam", bball.team_names("ncaam")),
-        ]
-        for sport, names in feeds:
-            try:
-                out += espn.recent_results(sport, names)
-            except Exception:
-                continue
-    except Exception:
-        pass
+    # Each sport is fetched independently so one failure (e.g. a missing table
+    # for an off-season league) can't wipe out the others. 10-day window gives
+    # picks a comfortable grading period.
+    from .models import espn, nba, wnba, summer, nfl, bball
+
+    def feed(sport, names_fn):
+        try:
+            out.extend(espn.recent_results(sport, names_fn(), days=10))
+        except Exception:
+            pass
+
+    feed("nba", lambda: nba.TEAM_NAMES)
+    feed("wnba", lambda: wnba.TEAM_NAMES)
+    feed("summer", lambda: summer.TEAM_NAMES)
+    feed("nfl", lambda: nfl.TEAM_NAMES)
+    feed("nbl", lambda: bball.team_names("nbl"))
+    feed("ncaam", lambda: bball.team_names("ncaam"))
     return out
 
 
