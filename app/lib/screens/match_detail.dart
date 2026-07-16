@@ -188,6 +188,7 @@ class MatchDetailScreen extends StatelessWidget {
         modelPick: r.home >= r.draw && r.home >= r.away
             ? 'H'
             : (r.away >= r.draw ? 'A' : 'D'),
+        modelProb: fav,
         accent: accent,
       ),
       const ResponsibleNote(),
@@ -376,6 +377,7 @@ class MatchDetailScreen extends StatelessWidget {
         sport: sportKey,
         allowDraw: false,
         modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+        modelProb: fav,
         accent: accent,
       ),
       const ResponsibleNote(),
@@ -424,6 +426,7 @@ class MatchDetailScreen extends StatelessWidget {
         sport: 'nfl',
         allowDraw: false,
         modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+        modelProb: fav,
         accent: accent,
       ),
       const ResponsibleNote(),

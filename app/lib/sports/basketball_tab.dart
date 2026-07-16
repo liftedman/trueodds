@@ -204,7 +204,8 @@ class _BasketballTabState extends State<BasketballTab> {
       ]),
       _card(context, [BeatModelPick(
           home: home, away: away, sport: _key, allowDraw: false,
-          modelPick: r.homeWin >= r.awayWin ? 'H' : 'A', accent: accent)]),
+          modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+          modelProb: fav, accent: accent)]),
       if (((lg['title_odds'] as List?) ?? const []).isNotEmpty)
         _card(context, _titleRace(context, (lg['title_odds'] as List).cast<Map>(), accent)),
       _card(context, [_eloRatings(context, _teams)]),

@@ -86,7 +86,8 @@ class _NflTabState extends State<NflTab> {
       ]),
       _card(context, [BeatModelPick(
           home: home, away: away, sport: 'nfl', allowDraw: false,
-          modelPick: r.homeWin >= r.awayWin ? 'H' : 'A', accent: accent)]),
+          modelPick: r.homeWin >= r.awayWin ? 'H' : 'A',
+          modelProb: fav, accent: accent)]),
       _card(context, [_eloRatings(context, teams)]),
       _card(context, _fixturesSection(
           context,

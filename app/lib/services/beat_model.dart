@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sports_model_app/widgets/theme.dart';
 
 /// Global store for the "Beat the Model" game: the user's picks, graded history
 /// vs the model, and the running head-to-head. Persisted locally.
@@ -125,15 +126,27 @@ class BeatModelPick extends StatelessWidget {
   final String home, away, sport, modelPick;
   final bool allowDraw;
   final Color accent;
+  /// The model favourite's win probability (0..1). When given, a
+  /// coin-flip / lean / strong tag is shown so you can see how sure the model
+  /// is *before* you commit a pick. Null hides the tag.
+  final double? modelProb;
   const BeatModelPick({
     required this.home,
     required this.away,
     required this.sport,
     required this.modelPick,
     required this.accent,
+    this.modelProb,
     this.allowDraw = true,
     super.key,
   });
+
+  /// (label, colour) for how strongly the model favours its pick.
+  static (String, Color) confidence(double p) => p >= .65
+      ? ('Strong', AppTheme.hi)
+      : p >= .55
+          ? ('Lean', AppTheme.med)
+          : ('Coin-flip', AppTheme.lo);
 
   @override
   Widget build(BuildContext context) {
@@ -169,11 +182,16 @@ class BeatModelPick extends StatelessWidget {
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w700,
                       color: accent)),
+              if (modelProb != null) ...[
+                const Spacer(),
+                _confidenceChip(modelProb!),
+              ],
             ]),
             const SizedBox(height: 4),
             Text(
                 userPick == null
                     ? 'Make your call. The model picked ${outcomeLabel(modelPick, home, away)} — can you do better?'
+                        '${modelProb != null && modelProb! < .55 ? ' It\'s near a coin-flip, so this is a good one to fade.' : ''}'
                     : graded
                         ? 'Full time: ${outcomeLabel(result!, home, away)}  (${rec['score'] ?? ''})'
                         : 'Locked in. We\'ll grade it against the model when it finishes.',
@@ -231,6 +249,21 @@ class BeatModelPick extends StatelessWidget {
           ]),
         );
       },
+    );
+  }
+
+  Widget _confidenceChip(double p) {
+    final (label, color) = confidence(p);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(.5)),
+      ),
+      child: Text('$label · ${(p * 100).round()}%',
+          style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
   }
 
