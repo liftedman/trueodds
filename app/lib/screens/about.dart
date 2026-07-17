@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sports_model_app/screens/track_record.dart';
+import 'package:sports_model_app/services/notifications.dart';
 
 /// The honesty layer — how it works, the real track record, and the data.
 class AboutTab extends StatelessWidget {
@@ -54,6 +55,7 @@ class AboutTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
       _trackRecordCard(context),
+      const NotificationSettingsCard(),
       card('How it works', [
         const Text(
           'Three models, each suited to its sport. Clubs use a Dixon-Coles '

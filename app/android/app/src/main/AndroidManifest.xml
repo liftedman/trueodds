@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in the release build for Supabase, team crests, and news links. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Opt-in local reminders for followed teams' games + the daily pick. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="TrueOdds"
         android:name="${applicationName}"

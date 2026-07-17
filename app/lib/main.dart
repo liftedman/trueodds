@@ -8,6 +8,7 @@ import 'package:sports_model_app/widgets/brand.dart';
 import 'package:sports_model_app/services/crests.dart';
 import 'package:sports_model_app/services/favorites.dart';
 import 'package:sports_model_app/screens/home_screen.dart';
+import 'package:sports_model_app/services/notifications.dart';
 import 'package:sports_model_app/screens/news.dart';
 import 'package:sports_model_app/screens/onboarding.dart';
 import 'package:sports_model_app/screens/search.dart';
@@ -18,6 +19,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favorites.load();
   await beatModel.load();
+  await notifications.init();
   runApp(const TrueOddsApp());
 }
 
@@ -98,6 +100,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
       });
       loadTeamCrests(_data!);
       beatModel.grade(_data!['results'] as List?);
+      notifications.sync(_data!);
     }
     await _load();
   }
@@ -116,6 +119,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
       });
       loadTeamCrests(_data!);
       beatModel.grade(_data!['results'] as List?); // grade picks vs results
+      notifications.sync(_data!); // (re)schedule reminders if enabled
     } catch (e) {
       if (!mounted) return;
       setState(() {
