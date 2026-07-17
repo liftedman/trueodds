@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sports_model_app/services/beat_model.dart';
 import 'package:sports_model_app/widgets/team_avatar.dart';
 import 'package:sports_model_app/widgets/theme.dart';
 
@@ -161,9 +162,11 @@ class FixturesList extends StatelessWidget {
       final score = f['score'];
       // probabilities (football h/d/a) or win% (nba home/away)
       List<Widget> odds;
+      double fav; // leading probability — drives the confidence chip
       if (f.containsKey('home_win')) {
         final hw = (f['home_win'] as num).toDouble();
         final aw = (f['away_win'] as num).toDouble();
+        fav = hw >= aw ? hw : aw;
         odds = [
           _o('1', pct(hw), hw >= aw, accent),
           _o('2', pct(aw), aw > hw, accent),
@@ -173,6 +176,7 @@ class FixturesList extends StatelessWidget {
         final d = (f['d'] as num).toDouble();
         final a = (f['a'] as num).toDouble();
         final mx = [h, d, a].reduce((x, y) => x > y ? x : y);
+        fav = mx;
         odds = [
           _o('1', pct(h), h == mx, accent),
           _o('X', pct(d), d == mx, accent),
@@ -215,9 +219,13 @@ class FixturesList extends StatelessWidget {
                 ),
             ]),
             const SizedBox(height: 8),
-            // second line: odds + extras, left-aligned with room to breathe
+            // second line: odds + confidence + extras, left-aligned
             Row(children: [
               ...odds,
+              if (!live) ...[
+                const SizedBox(width: 2),
+                _confidenceChip(fav),
+              ],
               const Spacer(),
               if (f['proj'] != null)
                 Text('proj ${f['proj']}',
@@ -237,6 +245,23 @@ class FixturesList extends StatelessWidget {
           if (i < rows.length - 1) Divider(height: 1, color: Theme.of(context).dividerColor),
         ]
       ],
+    );
+  }
+
+  /// Coin-flip / lean / strong tag from the leading probability, so you can
+  /// spot the fade candidates at a glance without opening the game.
+  Widget _confidenceChip(double p) {
+    final (label, color) = BeatModelPick.confidence(p);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.14),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withOpacity(.5)),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
   }
 
