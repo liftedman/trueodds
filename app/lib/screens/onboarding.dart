@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sports_model_app/services/notifications.dart';
 import 'package:sports_model_app/widgets/brand.dart';
 
 /// Persists whether the user has seen the first-run onboarding.
@@ -61,6 +62,13 @@ const _pages = <_Page>[
     'No model beats the bookmakers — if it could, we wouldn’t give it away. '
         'No sure things, no hype. Just honest odds. Please bet responsibly.',
   ),
+  _Page(
+    Icons.notifications_active_rounded,
+    Color(0xFF0EA5A4),
+    'Never miss\nyour teams',
+    'Get a heads-up about an hour before a team you follow plays, plus one '
+        'stand-out game each day. On-device only, no spam — off anytime.',
+  ),
 ];
 
 /// A polished, swipeable first-run intro that leads with the honesty brand.
@@ -83,8 +91,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   bool get _last => _page == _pages.length - 1;
 
-  void _next() {
+  void _next() async {
     if (_last) {
+      // Final step is the notification primer — tapping through fires the real
+      // OS permission prompt, then enters the app either way.
+      await notifications.setEnabled(true);
       widget.onDone();
     } else {
       _controller.nextPage(
@@ -160,27 +171,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             // primary action
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _next,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15)),
-                    textStyle: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: .2),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: Text(_last ? 'Get started' : 'Next',
-                        key: ValueKey(_last)),
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 16),
+              child: Column(children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _next,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(54),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15)),
+                      textStyle: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: .2),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: Text(_last ? 'Enable notifications' : 'Next',
+                          key: ValueKey(_last)),
+                    ),
                   ),
                 ),
-              ),
+                // "Not now" only on the notification step, so opting out is easy.
+                SizedBox(
+                  height: 44,
+                  child: _last
+                      ? TextButton(
+                          onPressed: widget.onDone,
+                          child: Text('Not now',
+                              style: TextStyle(color: cs.onSurface.withOpacity(.6))),
+                        )
+                      : null,
+                ),
+              ]),
             ),
           ]),
         ),
