@@ -48,7 +48,11 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
     super.initState();
     _boot();
     Onboarding.seen().then((v) {
-      if (mounted) setState(() => _onboarded = v);
+      if (!mounted) return;
+      setState(() => _onboarded = v);
+      // Returning users who onboarded before notifications existed get the
+      // opt-in prompt once, on launch, instead of never being asked.
+      if (v) notifications.maybeAskOnce();
     });
     Timer(const Duration(milliseconds: 2000), () {
       if (mounted) setState(() => _splash = false);

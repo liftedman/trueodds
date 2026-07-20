@@ -97,6 +97,22 @@ class NotificationService extends ChangeNotifier {
     await _reschedule();
   }
 
+  /// Remember that we've shown the opt-in (so we don't nag on every launch).
+  Future<void> markAsked() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('notif_asked', true);
+  }
+
+  /// Ask once, ever, for users who slipped past the onboarding primer (e.g. they
+  /// onboarded before notifications existed). Shows the OS prompt a single time.
+  Future<void> maybeAskOnce() async {
+    if (!_ready || _enabled) return;
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool('notif_asked') ?? false) return;
+    await p.setBool('notif_asked', true);
+    await setEnabled(true);
+  }
+
   Future<bool> _requestPermission() async {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();

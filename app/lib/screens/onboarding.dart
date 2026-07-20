@@ -96,6 +96,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       // Final step is the notification primer — tapping through fires the real
       // OS permission prompt, then enters the app either way.
       await notifications.setEnabled(true);
+      await notifications.markAsked();
       widget.onDone();
     } else {
       _controller.nextPage(
@@ -198,7 +199,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   height: 44,
                   child: _last
                       ? TextButton(
-                          onPressed: widget.onDone,
+                          onPressed: () {
+                            notifications.markAsked();
+                            widget.onDone();
+                          },
                           child: Text('Not now',
                               style: TextStyle(color: cs.onSurface.withOpacity(.6))),
                         )
