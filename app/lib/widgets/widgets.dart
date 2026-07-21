@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sports_model_app/services/beat_model.dart';
 import 'package:sports_model_app/widgets/team_avatar.dart';
 import 'package:sports_model_app/widgets/theme.dart';
+import 'package:sports_model_app/widgets/trust.dart';
 
 String pct(double v) => '${(v * 100).round()}%';
 String pct1(double v) => '${(v * 100).toStringAsFixed(1)}%';
@@ -163,6 +164,7 @@ class FixturesList extends StatelessWidget {
       // probabilities (football h/d/a) or win% (nba home/away)
       List<Widget> odds;
       double fav; // leading probability — drives the confidence chip
+      bool drawLive = false; // football only: draw is a genuinely live outcome
       if (f.containsKey('home_win')) {
         final hw = (f['home_win'] as num).toDouble();
         final aw = (f['away_win'] as num).toDouble();
@@ -177,6 +179,7 @@ class FixturesList extends StatelessWidget {
         final a = (f['a'] as num).toDouble();
         final mx = [h, d, a].reduce((x, y) => x > y ? x : y);
         fav = mx;
+        drawLive = drawProne(h, d, a);
         odds = [
           _o('1', pct(h), h == mx, accent),
           _o('X', pct(d), d == mx, accent),
@@ -225,6 +228,10 @@ class FixturesList extends StatelessWidget {
               if (!live) ...[
                 const SizedBox(width: 2),
                 _confidenceChip(fav),
+                if (drawLive) ...[
+                  const SizedBox(width: 6),
+                  _drawChip(),
+                ],
               ],
               const Spacer(),
               if (f['proj'] != null)
@@ -264,6 +271,20 @@ class FixturesList extends StatelessWidget {
               fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
   }
+
+  /// Small "Draw live" flag for tight football matches — the draw is a real
+  /// outcome here even though it's never the single most-likely one.
+  Widget _drawChip() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppTheme.med.withOpacity(.14),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: AppTheme.med.withOpacity(.5)),
+        ),
+        child: const Text('Draw live',
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.med)),
+      );
 
   Widget _o(String label, String value, bool win, Color accent) => Container(
         margin: const EdgeInsets.only(right: 6),

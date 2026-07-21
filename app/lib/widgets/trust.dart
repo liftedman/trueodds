@@ -75,6 +75,50 @@ class ConfidenceNote extends StatelessWidget {
   }
 }
 
+/// A football game is "draw-prone" when the draw is a genuinely live outcome —
+/// elevated on its own, or within a hair of the favourite. A draw is almost
+/// never the single most-likely result (one side's win usually edges the ~25%
+/// draw), so these are exactly the matches a winner-take-all pick hides.
+bool drawProne(double h, double d, double a) {
+  final topWin = h > a ? h : a;
+  return d >= .28 || (topWin - d) <= .08;
+}
+
+/// Flags a tight, draw-prone football match so the live ~25% draw isn't hidden
+/// behind the winner-take-all pick.
+class DrawWatchNote extends StatelessWidget {
+  final double h, d, a;
+  const DrawWatchNote(this.h, this.d, this.a, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!drawProne(h, d, a)) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: cs.primary, width: 3)),
+      ),
+      child: Row(children: [
+        Icon(Icons.balance_rounded, size: 18, color: cs.onSurface.withOpacity(.7)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Tight match — a draw is live at ${(d * 100).round()}%. The model still '
+            'names a favourite, but level games like this often finish all square. '
+            'Worth weighing the draw.',
+            style: TextStyle(
+                fontSize: 12, height: 1.35, color: cs.onSurface.withOpacity(.75)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 /// The honest footer shown on every prediction.
 class ResponsibleNote extends StatelessWidget {
   const ResponsibleNote({super.key});

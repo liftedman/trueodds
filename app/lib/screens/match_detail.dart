@@ -153,6 +153,7 @@ class MatchDetailScreen extends StatelessWidget {
       if (live != null) _label(c, 'Pre-match model'),
       Center(child: ConfidenceBadge(fav)),
       ConfidenceNote(fav),
+      DrawWatchNote(r.home, r.draw, r.away),
       WhyThis(reasons),
       const SizedBox(height: 16),
       ProbBar(home, r.home, r.home == fav, accent),
@@ -189,6 +190,7 @@ class MatchDetailScreen extends StatelessWidget {
             ? 'H'
             : (r.away >= r.draw ? 'A' : 'D'),
         modelProb: fav,
+        drawLive: drawProne(r.home, r.draw, r.away),
         accent: accent,
       ),
       const ResponsibleNote(),

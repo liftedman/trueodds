@@ -130,6 +130,9 @@ class BeatModelPick extends StatelessWidget {
   /// coin-flip / lean / strong tag is shown so you can see how sure the model
   /// is *before* you commit a pick. Null hides the tag.
   final double? modelProb;
+  /// True for a tight, draw-prone football match. The model almost never picks
+  /// the draw outright, so these are prime spots to beat it by taking the draw.
+  final bool drawLive;
   const BeatModelPick({
     required this.home,
     required this.away,
@@ -137,6 +140,7 @@ class BeatModelPick extends StatelessWidget {
     required this.modelPick,
     required this.accent,
     this.modelProb,
+    this.drawLive = false,
     this.allowDraw = true,
     super.key,
   });
@@ -191,7 +195,7 @@ class BeatModelPick extends StatelessWidget {
             Text(
                 userPick == null
                     ? 'Make your call. The model picked ${outcomeLabel(modelPick, home, away)} — can you do better?'
-                        '${modelProb != null && modelProb! < .55 ? ' It\'s near a coin-flip, so this is a good one to fade.' : ''}'
+                        '${drawLive ? ' Tight one — the model rarely calls a draw, so taking the draw can beat it.' : (modelProb != null && modelProb! < .55 ? ' It\'s near a coin-flip, so this is a good one to fade.' : '')}'
                     : graded
                         ? 'Full time: ${outcomeLabel(result!, home, away)}  (${rec['score'] ?? ''})'
                         : 'Locked in. We\'ll grade it against the model when it finishes.',
