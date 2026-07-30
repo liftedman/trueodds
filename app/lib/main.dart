@@ -29,9 +29,7 @@ class TrueOddsApp extends StatefulWidget {
   State<TrueOddsApp> createState() => _TrueOddsAppState();
 }
 
-class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin {
-  late final TabController _sportsTab =
-      TabController(length: sportTabs.length, vsync: this);
+class _TrueOddsAppState extends State<TrueOddsApp> {
   ThemeMode _mode = ThemeMode.dark;
   int _nav = 0; // 0 Today · 1 Sports · 2 News · 3 About
   Map<String, dynamic>? _data;
@@ -147,7 +145,6 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
   void dispose() {
     _timer?.cancel();
     _retry?.cancel();
-    _sportsTab.dispose();
     super.dispose();
   }
 
@@ -257,7 +254,7 @@ class _TrueOddsAppState extends State<TrueOddsApp> with TickerProviderStateMixin
             index: _nav,
             children: [
               TodayScreen(data, _load),
-              SportsScreen(data, _sportsTab, _load),
+              SportsScreen(data, _load),
               NewsTab(data, onRefresh: _load),
               AboutTab(data, onRefresh: _load, onReplayIntro: _replayOnboarding),
             ],
