@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sports_model_app/services/beat_model.dart';
 import 'package:sports_model_app/widgets/theme.dart';
 
 int _pct(num v) => (v * 100).round();
@@ -19,7 +20,7 @@ class TrackRecordScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Our track record')),
-      body: (r == null && wc == null)
+      body: (r == null && wc == null && !beatModel.hasActivity)
           ? _empty(context, muted)
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -35,6 +36,7 @@ class TrackRecordScreen extends StatelessWidget {
                     'How our predictions actually did — graded on games the '
                     'model never trained on. No cherry-picking.',
                     style: TextStyle(color: muted, height: 1.4)),
+                _youVsModel(context),
                 if (r != null) ...[
                   const SizedBox(height: 18),
                   _bandTitle(context, 'Club football'),
@@ -59,6 +61,71 @@ class TrackRecordScreen extends StatelessWidget {
                 ],
               ],
             ),
+    );
+  }
+
+  /// Your own live head-to-head with the model, from the Beat-the-Model game.
+  /// Updates as picks grade. Hidden until you've graded at least one.
+  Widget _youVsModel(BuildContext context) {
+    return ListenableBuilder(
+      listenable: beatModel,
+      builder: (c, _) {
+        final n = beatModel.graded;
+        if (n == 0) return const SizedBox.shrink();
+        final cs = Theme.of(c).colorScheme;
+        final you = beatModel.userRight / n;
+        final model = beatModel.modelRight / n;
+        final beat = beatModel.userBeatModel;
+        final streak = beatModel.streak;
+
+        Widget stat(String label, double rate, bool primary) => Expanded(
+              child: Column(children: [
+                Text('${_pct(rate)}%',
+                    style: TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                        color:
+                            primary ? cs.primary : cs.onSurface.withOpacity(.75))),
+                const SizedBox(height: 6),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12, color: cs.onSurface.withOpacity(.6))),
+              ]),
+            );
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _bandTitle(c, 'You vs the model'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withOpacity(.4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(children: [
+                Row(children: [
+                  stat('You called right', you, true),
+                  Container(
+                      width: 1, height: 54, color: cs.onSurface.withOpacity(.12)),
+                  stat('Model called right', model, false),
+                ]),
+                const SizedBox(height: 14),
+                Text(
+                    'over $n graded pick${n == 1 ? '' : 's'} · '
+                    'you\'ve beaten the model $beat time${beat == 1 ? '' : 's'}'
+                    '${streak >= 2 ? ' · $streak in a row 🔥' : ''}',
+                    textAlign: TextAlign.center,
+                    style:
+                        TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(.55))),
+              ]),
+            ),
+          ]),
+        );
+      },
     );
   }
 
