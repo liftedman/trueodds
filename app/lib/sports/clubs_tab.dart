@@ -185,7 +185,9 @@ class _ClubsTabState extends State<ClubsTab> {
           (((widget.data['leagues'] as Map)[nameToCode[leagueName]]
                   as Map)['fixtures'] as List?) ??
               const [],
-          accent)),
+          accent,
+          data: widget.data,
+          sportKey: 'clubs')),
       const ResponsibleNote(),
     ]));
   }

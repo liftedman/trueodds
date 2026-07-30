@@ -92,7 +92,9 @@ class _NflTabState extends State<NflTab> {
       _card(context, _fixturesSection(
           context,
           ((widget.data['nfl'] as Map)['fixtures'] as List?) ?? const [],
-          accent)),
+          accent,
+          data: widget.data,
+          sportKey: 'nfl')),
       const ResponsibleNote(),
     ]));
   }

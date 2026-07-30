@@ -92,7 +92,9 @@ class _EloTabState extends State<EloTab> {
       _card(context, _fixturesSection(
           context,
           ((widget.data[widget.sportKey] as Map)['fixtures'] as List?) ?? const [],
-          accent)),
+          accent,
+          data: widget.data,
+          sportKey: widget.sportKey)),
       const ResponsibleNote(),
     ]));
   }

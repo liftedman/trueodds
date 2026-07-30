@@ -149,7 +149,9 @@ class MarketChips extends StatelessWidget {
 class FixturesList extends StatelessWidget {
   final List fixtures;
   final Color accent;
-  const FixturesList(this.fixtures, this.accent, {super.key});
+  /// Tapping a row opens it (usually the full prediction). Null = not tappable.
+  final void Function(BuildContext, Map)? onOpen;
+  const FixturesList(this.fixtures, this.accent, {this.onOpen, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +188,7 @@ class FixturesList extends StatelessWidget {
           _o('2', pct(a), a == mx, accent),
         ];
       }
-      return Padding(
+      final row = Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,6 +222,11 @@ class FixturesList extends StatelessWidget {
                         style: TextStyle(fontSize: 10, color: muted)),
                   ],
                 ),
+              if (onOpen != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Icon(Icons.chevron_right, size: 18, color: muted),
+                ),
             ]),
             const SizedBox(height: 8),
             // second line: odds + confidence + extras, left-aligned
@@ -243,6 +250,12 @@ class FixturesList extends StatelessWidget {
             ]),
           ],
         ),
+      );
+      if (onOpen == null) return row;
+      return InkWell(
+        onTap: () => onOpen!(context, f as Map),
+        borderRadius: BorderRadius.circular(10),
+        child: row,
       );
     }).toList();
     return Column(

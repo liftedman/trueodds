@@ -210,7 +210,8 @@ class _BasketballTabState extends State<BasketballTab> {
         _card(context, _titleRace(context, (lg['title_odds'] as List).cast<Map>(), accent)),
       _card(context, [_eloRatings(context, _teams)]),
       _card(context, _fixturesSection(
-          context, (lg['fixtures'] as List?) ?? const [], accent)),
+          context, (lg['fixtures'] as List?) ?? const [], accent,
+          data: widget.data, sportKey: _key)),
       const ResponsibleNote(),
     ]));
   }

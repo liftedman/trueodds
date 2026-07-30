@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sports_model_app/screens/match_detail.dart';
 import 'package:sports_model_app/services/beat_model.dart';
 import 'package:sports_model_app/models/predict.dart';
 import 'package:sports_model_app/widgets/theme.dart';
@@ -122,8 +123,22 @@ Widget _chips(BuildContext c, String title, Map<String, double> m, Color accent)
       MarketChips(m, accent),
     ]);
 
-List<Widget> _fixturesSection(BuildContext c, List fx, Color accent) =>
-    [_label(c, 'Upcoming fixtures'), FixturesList(fx, accent)];
+List<Widget> _fixturesSection(BuildContext c, List fx, Color accent,
+        {Map? data, String? sportKey}) =>
+    [
+      _label(c, 'Upcoming fixtures'),
+      FixturesList(fx, accent,
+          onOpen: (data == null || sportKey == null)
+              ? null
+              : (ctx, f) => Navigator.of(ctx).push(MaterialPageRoute(
+                  builder: (_) => MatchDetailScreen(
+                        data: data,
+                        sportKey: sportKey,
+                        home: f['home'] as String,
+                        away: f['away'] as String,
+                        fixture: f,
+                      )))),
+    ];
 
 /// Real corners/cards for two teams by cross-referencing their club-league
 /// rate history (works for clubs + most UCL teams). Returns null when either
