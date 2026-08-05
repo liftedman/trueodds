@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sports_model_app/screens/team_profile.dart';
 import 'package:sports_model_app/services/favorites.dart';
 import 'package:sports_model_app/widgets/team_avatar.dart';
 
@@ -8,9 +9,12 @@ const _label = {
 
 /// Search every team/player across sports; follow with the star.
 class TeamSearch extends SearchDelegate<String?> {
+  final Map _data;
   final List<({String name, String sport})> _items;
 
-  TeamSearch(Map data) : _items = _collect(data);
+  TeamSearch(Map data)
+      : _data = data,
+        _items = _collect(data);
 
   static List<({String name, String sport})> _collect(Map data) {
     final seen = <String>{};
@@ -67,6 +71,9 @@ class TeamSearch extends SearchDelegate<String?> {
                 title: Text(e.name),
                 subtitle: Text(_label[e.sport] ?? e.sport),
                 trailing: FavStar(e.sport, e.name),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        TeamProfileScreen(_data, e.sport, e.name))),
               ))
           .toList(),
     );
