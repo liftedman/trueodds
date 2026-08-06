@@ -8,6 +8,8 @@ import 'package:sports_model_app/widgets/brand.dart';
 import 'package:sports_model_app/services/crests.dart';
 import 'package:sports_model_app/services/favorites.dart';
 import 'package:sports_model_app/screens/home_screen.dart';
+import 'package:sports_model_app/markets/markets_screen.dart';
+import 'package:sports_model_app/services/markets_api.dart';
 import 'package:sports_model_app/services/notifications.dart';
 import 'package:sports_model_app/screens/news.dart';
 import 'package:sports_model_app/screens/onboarding.dart';
@@ -23,6 +25,11 @@ Future<void> main() async {
   runApp(const TrueOddsApp());
 }
 
+/// The app has two modes the user switches between. They share the shell, the
+/// theme and the honesty stance, but nothing else — separate snapshots,
+/// separate caches, separate failure paths.
+enum AppMode { sports, markets }
+
 class TrueOddsApp extends StatefulWidget {
   const TrueOddsApp({super.key});
   @override
@@ -31,9 +38,16 @@ class TrueOddsApp extends StatefulWidget {
 
 class _TrueOddsAppState extends State<TrueOddsApp> {
   ThemeMode _mode = ThemeMode.dark;
+  AppMode _app = AppMode.sports;
   int _nav = 0; // 0 Today · 1 Sports · 2 News · 3 About
   Map<String, dynamic>? _data;
   Object? _error;
+
+  // Markets mode. Loaded lazily on first switch, so users who never open it
+  // never pay for the fetch.
+  Map<String, dynamic>? _markets;
+  Object? _marketsError;
+  bool _marketsLoading = false;
   bool _stale = false; // showing cached data; last fetch did not succeed
   bool _splash = true; // keep the brand on screen briefly on every launch
   bool? _onboarded; // null = still checking the first-run flag
@@ -55,7 +69,8 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
     Timer(const Duration(milliseconds: 2000), () {
       if (mounted) setState(() => _splash = false);
     });
-    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _load());
+    _timer =
+        Timer.periodic(const Duration(seconds: 60), (_) => _refreshCurrent());
   }
 
   void _finishOnboarding() {
@@ -66,6 +81,11 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
   /// Android back: from a secondary tab, return to Today; from Today, require a
   /// second press within 2s before exiting (so you don't quit by accident).
   void _handleBack() {
+    // Markets is a mode, not a tab — back returns to Sports rather than exiting.
+    if (_app == AppMode.markets) {
+      setState(() => _app = AppMode.sports);
+      return;
+    }
     if (_nav != 0) {
       setState(() => _nav = 0);
       return;
@@ -141,6 +161,54 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
     _retry ??= Timer.periodic(const Duration(seconds: 12), (_) => _load());
   }
 
+  // --- Markets mode --------------------------------------------------------
+
+  /// Show any cached markets snapshot immediately, then fetch a fresh one.
+  Future<void> _bootMarkets() async {
+    final cache = await MarketsApi.cached();
+    if (cache != null && mounted && _markets == null) {
+      setState(() {
+        _markets = cache['data'] as Map<String, dynamic>;
+        _markets!['__updated'] = cache['updated_at'];
+      });
+    }
+    await _loadMarkets();
+  }
+
+  Future<void> _loadMarkets() async {
+    if (!mounted) return;
+    setState(() => _marketsLoading = true);
+    try {
+      final res = await MarketsApi.fetch();
+      if (!mounted) return;
+      setState(() {
+        _markets = res['data'] as Map<String, dynamic>;
+        _markets!['__updated'] = res['updated_at'];
+        _marketsError = null;
+        _marketsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        // Keep showing cached data if we have it; only surface the error when
+        // there is nothing at all to render.
+        if (_markets == null) _marketsError = e;
+        _marketsLoading = false;
+      });
+    }
+  }
+
+  void _switchMode(AppMode m) {
+    setState(() => _app = m);
+    if (m == AppMode.markets && _markets == null && !_marketsLoading) {
+      _bootMarkets();
+    }
+  }
+
+  /// The refresh button and the 60s timer act on whichever mode is on screen.
+  Future<void> _refreshCurrent() =>
+      _app == AppMode.markets ? _loadMarkets() : _load();
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -166,16 +234,21 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
             ? AppBar(
           titleSpacing: 16,
           title: const BrandMark(compact: true),
+          bottom: _ModeSwitcher(mode: _app, onChanged: _switchMode),
           actions: [
-            Builder(
-              builder: (ctx) => IconButton(
-                  tooltip: 'Search',
-                  icon: const Icon(Icons.search),
-                  onPressed: () =>
-                      showSearch(context: ctx, delegate: TeamSearch(_data!))),
-            ),
+            // Search covers teams and players, so it only belongs in Sports.
+            if (_app == AppMode.sports && _data != null)
+              Builder(
+                builder: (ctx) => IconButton(
+                    tooltip: 'Search',
+                    icon: const Icon(Icons.search),
+                    onPressed: () =>
+                        showSearch(context: ctx, delegate: TeamSearch(_data!))),
+              ),
             IconButton(
-                tooltip: 'Refresh', icon: const Icon(Icons.refresh), onPressed: _load),
+                tooltip: 'Refresh',
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshCurrent),
             IconButton(
               tooltip: 'Light / dark',
               icon: Icon(_mode == ThemeMode.dark
@@ -188,7 +261,9 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
         )
             : null,
         body: _body(),
-        bottomNavigationBar: !_showChrome
+        // Markets has its own asset-class tabs; the sports nav would be
+        // meaningless there, so it drops away with the mode.
+        bottomNavigationBar: (!_showChrome || _app == AppMode.markets)
             ? null
             : NavigationBar(
                 selectedIndex: _nav,
@@ -217,9 +292,10 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
     );
   }
 
-  /// App chrome (bars) only show once we're past splash + onboarding with data.
-  bool get _showChrome =>
-      !_splash && _onboarded == true && _data != null;
+  /// App chrome shows once we're past splash + onboarding. Deliberately NOT
+  /// conditional on the sports snapshot: if Sports fails to load, the mode
+  /// switcher must still be reachable so Markets is not taken down with it.
+  bool get _showChrome => !_splash && _onboarded == true;
 
   Widget _body() {
     return AnimatedSwitcher(
@@ -237,6 +313,8 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
       return OnboardingScreen(
           key: const ValueKey('onboard'), onDone: _finishOnboarding);
     }
+    if (_app == AppMode.markets) return _marketsContent();
+
     if (_data == null && _error == null) {
       return const SplashView(key: ValueKey('loading'));
     }
@@ -261,6 +339,88 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Markets mode body: its own loading, error and content states, entirely
+/// independent of the sports snapshot.
+extension _MarketsBody on _TrueOddsAppState {
+  Widget _marketsContent() {
+    if (_markets == null && _marketsError == null) {
+      return const SplashView(key: ValueKey('markets-loading'));
+    }
+    if (_markets == null) {
+      return _ErrorView(
+        key: const ValueKey('markets-error'),
+        message: '$_marketsError',
+        onRetry: _loadMarkets,
+        hint: 'Markets data is published separately. Run '
+            '`python -m markets_model.main push`.',
+      );
+    }
+    return MarketsScreen(_markets!, _loadMarkets,
+        key: const ValueKey('markets'));
+  }
+}
+
+/// Slim two-way switch under the app bar. This is the top-level choice the
+/// whole app hangs off, so it lives in permanent chrome rather than behind a
+/// menu — you can always see which mode you are in, and leave it in one tap.
+class _ModeSwitcher extends StatelessWidget implements PreferredSizeWidget {
+  final AppMode mode;
+  final ValueChanged<AppMode> onChanged;
+  const _ModeSwitcher({required this.mode, required this.onChanged});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(46);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        height: 34,
+        decoration: BoxDecoration(
+          color: cs.onSurface.withOpacity(.06),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(children: [
+          _seg(context, AppMode.sports, '⚽  Sports'),
+          _seg(context, AppMode.markets, '📈  Markets'),
+        ]),
+      ),
+    );
+  }
+
+  Widget _seg(BuildContext c, AppMode m, String label) {
+    final cs = Theme.of(c).colorScheme;
+    final on = mode == m;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(m),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: on ? cs.surface : null,
+            borderRadius: BorderRadius.circular(7),
+            boxShadow: on
+                ? [BoxShadow(color: Colors.black.withOpacity(.10), blurRadius: 4)]
+                : null,
+          ),
+          child: Center(
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  color: on ? cs.onSurface : cs.onSurface.withOpacity(.6),
+                )),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -305,7 +465,14 @@ class _StaleBanner extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
-  const _ErrorView({super.key, required this.message, required this.onRetry});
+  final String hint;
+  const _ErrorView({
+    super.key,
+    required this.message,
+    required this.onRetry,
+    this.hint = 'Check the anon key in lib/services/config.dart, and that '
+        '`python -m sports_model.main push` has run.',
+  });
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -327,11 +494,10 @@ class _ErrorView extends StatelessWidget {
               label: const Text('Try again'),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Check the anon key in lib/config.dart, and that '
-              '`python -m sports_model.main push` has run.',
+            Text(
+              hint,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12),
             ),
           ],
         ),

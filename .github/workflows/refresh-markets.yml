@@ -1,0 +1,90 @@
+name: Refresh markets
+
+# Rebuilds the Markets-mode snapshot: ingest bars -> walk-forward evaluation ->
+# push to Supabase (row id='markets'). The app's 60s auto-refresh picks it up.
+#
+# WHY THIS IS SELF-CONTAINED (unlike push-snapshot.yml, which reads a committed
+# data/sports.db): data/markets.db is ~98MB and growing. GitHub hard-blocks files
+# over 100MB, and committing a large binary daily would bloat the repo's history
+# for no benefit. So this job ingests into the runner's ephemeral disk each time
+# and throws the database away afterwards.
+#
+# WHY DAILY AND NOT EVERY 5 MINUTES:
+#   * The track record is a slow-moving measurement over thousands of samples.
+#     It does not meaningfully change hour to hour.
+#   * Daily bars update once a day.
+#   * A 5-minute forecast published on a schedule is stale before anyone reads
+#     it. Pushing one more often would look like freshness without being it,
+#     which is the opposite of what this mode is for. The app marks any forecast
+#     whose settlement time has passed as expired rather than showing it as live.
+
+on:
+  schedule:
+    # 05:40 UTC daily — after the US close and before the European open, so the
+    # daily bars for the previous session are settled and published.
+    - cron: "40 5 * * *"
+  workflow_dispatch: {} # manual "Run workflow" button
+
+concurrency:
+  group: refresh-markets
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # Full ingest + a ~130-combination walk-forward sweep. Generous headroom;
+    # a normal run is well inside this.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          # No pip cache, matching push-snapshot.yml: a stale cached build of the
+          # package once caused the cloud to silently republish old code.
+
+      - name: Install dependencies
+        run: pip install pandas numpy scipy requests python-dotenv scikit-learn yfinance
+
+      - name: Show what commit we're running
+        run: git rev-parse --short HEAD
+
+      # GitHub's runners are US-hosted and Binance geo-blocks US IPs, so this
+      # step is expected to fall back to Coinbase here — ingest_crypto probes
+      # Binance once and switches automatically, printing which source it used.
+      # Coinbase lists all seven pairs and covers every timeframe we report, so
+      # the cloud run gets a complete crypto set without a key.
+      #
+      # `|| true` is belt-and-braces only: if BOTH sources were unreachable we
+      # would rather publish the four Yahoo asset classes than fail the job and
+      # leave the app on a days-old snapshot. Watch the log for the "source:"
+      # line to confirm which one served the data.
+      - name: Ingest crypto (Binance, falling back to Coinbase on US runners)
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main ingest-crypto --timeframes 5m 15m 1h 1d --bars 8000 || true
+
+      - name: Ingest FX / stocks / indices / commodities
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main ingest-yahoo --timeframes 5m 15m 1h 1d
+
+      - name: What did we get
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main status
+
+      # The honest part. Populates eval_runs, which `push` reads — without this
+      # every instrument would publish with a null track record.
+      - name: Walk-forward evaluation (populates the track records)
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main eval-all --timeframes 5m 15m 1h 1d --horizon 1 --save
+
+      - name: Build & push snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PYTHONPATH: src
+        run: python -m markets_model.main push

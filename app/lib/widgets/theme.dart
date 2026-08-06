@@ -17,6 +17,14 @@ class AppTheme {
     'tennis': Color(0xFF84CC16),  // lime
     'cl': Color(0xFFE5484D),      // red
     'friendlies': Color(0xFF64748B), // slate (muted — it's an exhibition)
+
+    // Markets mode — same map, keyed by asset class, so the accent lookup
+    // works identically in both modes.
+    'crypto': Color(0xFFF7931A),    // bitcoin orange
+    'fx': Color(0xFF3B82F6),        // blue
+    'equity': Color(0xFF10B981),    // emerald
+    'index': Color(0xFF6366F1),     // indigo
+    'commodity': Color(0xFFB45309), // bronze
   };
 
   // Confidence colors.

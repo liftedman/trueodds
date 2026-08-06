@@ -148,6 +148,121 @@ to beat the market.
 
 ---
 
+## Markets mode (trading analysis)
+
+The app has **two modes** the user switches between: **Sports** (above) and
+**Markets** — the same honest-measurement approach applied to tradable
+instruments, covering the range that fixed-time ("binary") platforms like
+ExpertOption offer.
+
+Separate Python package (`src/markets_model/`), separate database
+(`data/markets.db`), separate Supabase row (`id='markets'`), so the two modes
+fail independently.
+
+### The one number that matters
+
+A fixed payout of 80% is decimal odds of 1.80, so **breakeven is 55.56%**.
+Below that a trade loses money no matter how confident it looks — a ~10% house
+edge per trade, roughly 3× the vig on a football 1X2 market, with the platform
+acting as both counterparty and price source. Every screen in Markets mode shows
+the model's confidence next to that bar, and next to the hit rate it has
+actually achieved.
+
+### Coverage
+
+| Asset class | Instruments | Source |
+|---|---|---|
+| Crypto | 7 (BTC, ETH, SOL, XRP, BNB, ADA, DOGE) | Binance, falling back to Coinbase (no key) |
+| Forex | 7 majors | Yahoo Finance (`yfinance`, no key) |
+| Stocks | 7 US large-cap | Yahoo Finance |
+| Indices | 6 (S&P 500, Nasdaq 100, Dow, DAX, FTSE, Nikkei) | Yahoo Finance |
+| Commodities | 6 (gold, silver, WTI, Brent, nat gas, copper) | Yahoo Finance |
+
+Horizons: **5m / 15m / 1h / 1d**. 1m is deliberately excluded — Yahoo serves
+only 7 days of it, so it cannot be evaluated honestly for four of the five asset
+classes, and shipping an unevaluated horizon is the thing this mode exists not
+to do. (Stooq was the original source; it now gates automated access behind a
+JavaScript proof-of-work challenge.)
+
+**Two crypto sources on purpose.** Binance is preferred — deeper history, 1000
+bars per request, USDT pairs matching how these instruments are quoted on the
+platforms being modelled. But Binance geo-blocks US IPs and GitHub Actions
+runners are US-hosted, so the nightly job would otherwise publish a snapshot
+with no crypto at all and silently drop the asset class from the app. Coinbase
+Exchange is the fallback: keyless, US-available, lists all seven pairs, and
+covers every reported timeframe. It quotes USD rather than USDT — a ~0.09%
+basis, immaterial for direction. `ingest-crypto` probes once and prints which
+source served the data.
+
+### Commands
+
+```powershell
+python -m markets_model.main ingest            # everything (crypto + Yahoo)
+python -m markets_model.main ingest-crypto     # Binance only
+python -m markets_model.main ingest-yahoo      # FX / stocks / indices / commodities
+python -m markets_model.main status            # what's stored
+
+python -m markets_model.main eval BTCUSDT 5m       # walk-forward, one instrument
+python -m markets_model.main eval-all --save       # the full honest sweep
+python -m markets_model.main predict EURUSD 1h     # forecast the next bar
+python -m markets_model.main resolve               # settle logged predictions
+
+python -m markets_model.main report            # build data/processed/markets.json
+python -m markets_model.main push              # upload snapshot to Supabase
+```
+
+### How the evaluation avoids fooling itself
+
+- **Expanding-window walk-forward.** Train on `[0, t)`, predict `[t, t+block)`,
+  advance. The scaler refits with the model, so no future statistics leak back.
+- **Training stops `horizon` rows short of the test block** — otherwise the last
+  training row's outcome lands inside the test period. A subtle leak that
+  survives most reviews.
+- **Benchmarked against the drift, not a coin flip.** Beating 50% is trivial on
+  a series that trends; the comparison is against always predicting the training
+  base rate.
+- **Wilson confidence intervals, and the lower bound is what counts.** A 56%
+  point estimate whose interval reaches 51% is not an edge.
+- **Costs applied before the verdict** — accuracy is judged against the payout,
+  not in the abstract.
+- **Multiple-testing is stated out loud.** Sweeping 122 combinations, ~6.1
+  clear the bar by luck alone; the app prints that number beside the real count.
+
+### Honest findings (measured 2026-08-06)
+
+Walk-forward over **978,813 bars**, 122 instrument/horizon combinations:
+
+- **Mean hit rate 51.31%** against the **55.56%** needed. Every EV negative.
+- **1 of 122 cleared breakeven** — against ~6.1 expected from chance alone.
+  Fewer winners than luck predicts, i.e. no evidence of an edge.
+- 30 of 122 beat the base-rate benchmark (better calibrated, still not tradable).
+- The lone outlier is **USDCAD 5m at 57.00%** (n=8,070, CI 55.92–58.08%). Treat
+  it as a data artifact until proven otherwise: Yahoo's intraday FX bars are
+  *indicative*, not dealable, and repeated/stale quotes manufacture exactly this
+  kind of spurious autocorrelation. Re-test against a real dealable feed
+  (OANDA) before taking it seriously — and note 5m FX spread would eat most of
+  a 1.4pp edge anyway.
+
+Same conclusion as the sports side, reached the same way: well-calibrated
+probabilities, no edge. That measurement — published rather than hidden — is
+the product.
+
+### Harness controls (`tests/test_markets.py`)
+
+A "no edge" result is worthless unless the harness can detect an edge, so two
+synthetic controls bracket every real result:
+
+- **Positive control** — a series with genuine signal; the harness must find
+  >70% and declare an edge. If this fails, no verdict it has ever produced means
+  anything.
+- **Negative control** — a pure random walk; the harness must land near 50% and
+  must not declare an edge.
+- Plus a **causality test**: features built on a prefix must be bit-identical to
+  the same rows built on the full series. Any forward-looking calculation breaks
+  it.
+
+---
+
 ## Project layout
 
 ```
