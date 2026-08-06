@@ -5,6 +5,7 @@ import 'package:sports_model_app/widgets/theme.dart';
 
 const sportTabs = [
   ('clubs', '⚽ Clubs'),
+  ('friendlies', '🤝 Friendlies'),
   ('wc', '🏆 World Cup'),
   ('basketball', '🏀 Basketball'),
   ('nfl', '🏈 NFL'),
@@ -29,11 +30,12 @@ class _SportsScreenState extends State<SportsScreen>
   late TabController _controller;
 
   /// Whether a tab still has anything to show. Season-long tabs are always on;
-  /// the World Cup only shows while it has fixtures still to come.
+  /// the World Cup and Friendlies only show while they have fixtures (a finished
+  /// tournament / an empty off-season friendlies calendar drops out).
   bool _visible(String key) {
-    if (key != 'wc') return true;
-    final wc = widget.data['wc'];
-    final fx = wc is Map ? wc['fixtures'] as List? : null;
+    if (key != 'wc' && key != 'friendlies') return true;
+    final block = widget.data[key];
+    final fx = block is Map ? block['fixtures'] as List? : null;
     return fx != null && fx.isNotEmpty;
   }
 
@@ -78,6 +80,8 @@ class _SportsScreenState extends State<SportsScreen>
     switch (key) {
       case 'clubs':
         return ClubsTab(widget.data, onRefresh: widget.onRefresh);
+      case 'friendlies':
+        return FriendliesTab(widget.data, onRefresh: widget.onRefresh);
       case 'wc':
         return EloTab(widget.data, 'wc',
             defaultNeutral: true, onRefresh: widget.onRefresh);

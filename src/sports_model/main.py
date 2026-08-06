@@ -130,6 +130,12 @@ def cmd_ingest_wta() -> None:
     tennis_wta.ingest_all()
 
 
+def cmd_ingest_friendlies() -> None:
+    from .ingest import friendlies
+
+    friendlies.run()
+
+
 def cmd_tennis() -> None:
     from .models import tennis
 
@@ -355,6 +361,7 @@ _COMMANDS = {
     "nba": cmd_nba,
     "ingest-tennis": cmd_ingest_tennis,
     "ingest-wta": cmd_ingest_wta,
+    "ingest-friendlies": cmd_ingest_friendlies,
     "tennis": cmd_tennis,
     "cl": cmd_cl,
     "wc": cmd_wc,

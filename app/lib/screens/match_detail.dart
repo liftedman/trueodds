@@ -92,7 +92,7 @@ class MatchDetailScreen extends StatelessWidget {
     if (basketball.contains(sportKey)) return _basketball(c, accent);
     if (sportKey == 'nfl') return _nfl(c, accent);
     if (sportKey == 'clubs') return _clubs(c, accent);
-    return _elo(c, accent); // wc / cl
+    return _elo(c, accent); // wc / cl / friendlies
   }
 
   /// Approx minutes played, from the UTC kickoff (with a rough half-time gap).
@@ -215,7 +215,7 @@ class MatchDetailScreen extends StatelessWidget {
     final sport = data[sportKey] as Map;
     final elo = _eloMap(sport['teams'] as List);
     final eloH = elo[home] ?? 1500, eloA = elo[away] ?? 1500;
-    final neutral = sportKey == 'wc';
+    final neutral = sportKey == 'wc' || sportKey == 'friendlies';
     final r = Predict.elo(sport, eloH, eloA, neutral);
     return _grid(c, accent, r,
         reasons: _gridReasons(r, eloH: eloH, eloA: eloA, neutral: neutral));

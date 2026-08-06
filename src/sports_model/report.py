@@ -158,6 +158,7 @@ def _build_data() -> dict:
         "tennis_wta": tennis_wta,
         "tennis_tours": tennis_tours,
         "cl": _build_cl_data(),
+        "friendlies": _build_friendlies(),
         "news": _safe_news(),
         "receipts": _safe_receipts(),
         "wc_receipts": _safe_wc_receipts(),
@@ -471,6 +472,76 @@ def _build_cl_data() -> dict | None:
         "total_base": round(model.total_base, 4),
         "total_gap": round(model.total_gap, 6),
         "tz": config.DISPLAY_TZ_LABEL,
+        "teams": teams,
+        "fixtures": fixtures,
+    }
+
+
+def _build_friendlies() -> dict | None:
+    """Upcoming club friendlies, rated with the unified cross-league club Elo.
+
+    A low-confidence exhibition: pre-season squads rotate heavily. We only show
+    matches where both teams are in our rating pool (tour games vs unrated sides
+    are dropped, with a count so the omission is honest). Neutral venue assumed.
+    """
+    from datetime import date as _date
+
+    from . import db
+    from .models import club_elo
+    from .models.club_schedule import _LIVE, _norm, _resolve, _to_local
+
+    try:
+        with db.connect() as conn:
+            rows = [dict(r) for r in conn.execute(
+                "SELECT date, time_utc, home, away, status FROM friendly_fixtures "
+                "WHERE date >= ? ORDER BY date", (_date.today().isoformat(),))]
+    except Exception:
+        return None  # table not present yet (DB predates this feature)
+    if not rows:
+        return None
+
+    try:
+        model, _diag = club_elo.build()
+    except Exception:
+        return None
+    universe = set(model.ratings)
+    norm_map = {_norm(t): t for t in universe}
+
+    fixtures: list[dict] = []
+    used: set[str] = set()
+    dropped = 0
+    for r in rows:
+        home = _resolve(r["home"], universe, norm_map)
+        away = _resolve(r["away"], universe, norm_map)
+        if not home or not away:
+            dropped += 1
+            continue
+        p = model.predict(home, away, neutral=True)
+        t = model.predict_totals(home, away, neutral=True)
+        status = (r["status"] or "NS").strip()
+        used.add(home)
+        used.add(away)
+        fixtures.append({
+            "date": r["date"],
+            "time": _to_local(r["time_utc"], r["date"]) if r["time_utc"] else "",
+            "live": status in _LIVE,
+            "home": home, "away": away,
+            "h": round(p["H"], 3), "d": round(p["D"], 3), "a": round(p["A"], 3),
+            "ov": round(t["OV"], 3),
+        })
+    if not fixtures:
+        return None
+
+    teams = [{"name": t, "elo": round(model.rating(t), 1)} for t in sorted(used)]
+    return {
+        "name": "Club Friendlies",
+        "exhibition": True,   # app shows a low-confidence banner
+        "neutral": True,      # rated as neutral-venue games
+        "dropped": dropped,   # matchups we couldn't rate honestly (not shown)
+        "home_adv": round(model.home_adv, 1),
+        "sup_slope": round(model.sup_slope, 6),
+        "total_base": round(model.total_base, 4),
+        "total_gap": round(model.total_gap, 6),
         "teams": teams,
         "fixtures": fixtures,
     }

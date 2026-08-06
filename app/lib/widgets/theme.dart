@@ -16,6 +16,7 @@ class AppTheme {
     'nfl': Color(0xFFD97706),     // amber (pigskin)
     'tennis': Color(0xFF84CC16),  // lime
     'cl': Color(0xFFE5484D),      // red
+    'friendlies': Color(0xFF64748B), // slate (muted — it's an exhibition)
   };
 
   // Confidence colors.

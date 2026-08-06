@@ -158,6 +158,27 @@ CREATE TABLE IF NOT EXISTS bball_teams (
     name    TEXT NOT NULL,
     PRIMARY KEY (league, abbr)
 );
+
+-- Upcoming club friendlies (pre-season / mid-season exhibitions), from
+-- TheSportsDB. Refreshed daily and rebuilt from scratch each run. Names are the
+-- raw TheSportsDB spellings; the report resolves them to model teams.
+CREATE TABLE IF NOT EXISTS friendly_fixtures (
+    date      TEXT NOT NULL,          -- YYYY-MM-DD
+    time_utc  TEXT,                   -- HH:MM:SS (UTC) or NULL
+    home      TEXT NOT NULL,
+    away      TEXT NOT NULL,
+    status    TEXT,                   -- TheSportsDB strStatus
+    PRIMARY KEY (date, home, away)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friendly_date ON friendly_fixtures (date);
+
+-- Cache of TheSportsDB team ids, resolved once per team by name search. Lets
+-- the daily friendlies ingest skip re-resolving known clubs.
+CREATE TABLE IF NOT EXISTS tsdb_team_ids (
+    name     TEXT PRIMARY KEY,        -- our (football-data) team name
+    tsdb_id  TEXT                     -- TheSportsDB idTeam, or '' if unresolved
+);
 """
 
 

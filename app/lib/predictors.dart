@@ -11,6 +11,7 @@ part 'sports/elo_tab.dart';
 part 'sports/basketball_tab.dart';
 part 'sports/nfl_tab.dart';
 part 'sports/tennis_tab.dart';
+part 'sports/friendlies_tab.dart';
 
 /// Plain-language reasons behind a football/Elo grid prediction.
 List<Reason> _gridReasons(String home, String away, GridResult r,

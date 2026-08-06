@@ -46,6 +46,7 @@ jobs:
           python -m sports_model.main ingest-nfl  || true
           python -m sports_model.main ingest-wnba || true
           python -m sports_model.main ingest-wta  || true
+          python -m sports_model.main ingest-friendlies || true
           python -m sports_model.main crests      || true
 
       - name: Commit refreshed data
