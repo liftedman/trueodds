@@ -1,0 +1,75 @@
+name: Paper trade
+
+# The forward test. Every hour: grade the forecasts whose window has closed,
+# log a fresh one per instrument, and publish the running record to the app.
+#
+# This is the part that can settle the question the backtest can only argue.
+# Predictions are written to Supabase BEFORE their outcome exists and are never
+# edited afterwards, so the hit rate that accumulates here is evidence in a way
+# a self-written backtest never is — whichever way it comes out.
+#
+# WHY HOURLY, AND WHY ONLY THE 1h HORIZON
+#   A forward test is only honest if the forecast is logged while its window is
+#   still open. That ties the cadence to the horizon: you can only forward-test
+#   a 1h forecast if you run at least hourly. 5m and 15m would need a run every
+#   few minutes, which is not worth an ingest cycle each time, and `paper`
+#   refuses to log a forecast whose window has already closed rather than
+#   quietly padding the sample with hindsight. Daily bars are covered by
+#   refresh-markets.yml.
+#
+# WHY IT DOESN'T PUSH A FULL SNAPSHOT
+#   A full rebuild needs every timeframe ingested plus the eval_runs table, and
+#   the runner rebuilds its database from scratch each time. A cheap hourly
+#   `push` would therefore republish with missing horizons and null track
+#   records — worse than what is already live. Instead `paper` patches just the
+#   live_record field into the existing snapshot row.
+
+on:
+  schedule:
+    # Five past every hour: late enough that the previous hourly bar has closed
+    # and been published by the upstream sources.
+    - cron: "5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: paper-trade
+  cancel-in-progress: true
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas numpy scipy requests python-dotenv scikit-learn yfinance
+
+      - name: Show what commit we're running
+        run: git rev-parse --short HEAD
+
+      # Only the 1h timeframe: it is the one being forward-tested, and keeping
+      # the ingest narrow is what makes an hourly cadence affordable. The bars
+      # fetched here also settle last hour's forecasts.
+      - name: Ingest 1h bars (crypto)
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main ingest-crypto --timeframes 1h --bars 500 || true
+
+      - name: Ingest 1h bars (FX / stocks / indices / commodities)
+        env:
+          PYTHONPATH: src
+        run: python -m markets_model.main ingest-yahoo --timeframes 1h
+
+      # resolve -> log -> publish, in that order. Resolving first uses the bars
+      # just ingested to grade the previous run, so one job is a full cycle.
+      - name: Resolve, log, and publish the record
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PYTHONPATH: src
+        run: python -m markets_model.main paper --timeframes 1h

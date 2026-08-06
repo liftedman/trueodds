@@ -108,6 +108,23 @@ def _instrument_block(inst, timeframe: str) -> dict | None:
     }
 
 
+def _safe_live_record(payout: float) -> dict | None:
+    """The forward-tested paper record, or None if it isn't available.
+
+    Never allowed to break the snapshot. The paper store is optional (it needs
+    docs/markets_paper_schema.sql to have been run) and lives behind a network
+    call, so any failure degrades to "no live record yet" rather than taking the
+    whole Markets mode offline.
+    """
+    try:
+        from . import paper
+
+        return paper.record(payout=payout)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  (no live paper record: {exc})")
+        return None
+
+
 def build_data(timeframes: list[str] | None = None, payout: float | None = None) -> dict:
     """Assemble the full Markets snapshot."""
     timeframes = timeframes or REPORT_TIMEFRAMES
@@ -171,6 +188,7 @@ def build_data(timeframes: list[str] | None = None, payout: float | None = None)
         "payout": payout,
         "breakeven": breakeven,
         "min_sample": config.MIN_SAMPLE_FOR_CLAIM,
+        "live_record": _safe_live_record(payout),
         "timeframes": timeframes,
         "asset_classes": [
             {"key": k, "name": v}

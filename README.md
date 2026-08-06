@@ -209,7 +209,38 @@ python -m markets_model.main resolve               # settle logged predictions
 
 python -m markets_model.main report            # build data/processed/markets.json
 python -m markets_model.main push              # upload snapshot to Supabase
+
+python -m markets_model.main paper --timeframes 1h   # forward test: resolve, log, publish
 ```
+
+### Paper trading — the forward test
+
+A backtest is only as trustworthy as whoever wrote the harness. This is the
+answer to that: forecasts written down **before** the outcome exists and never
+edited afterwards.
+
+One-time setup: run `docs/markets_paper_schema.sql` in your Supabase SQL Editor.
+
+`paper` does a full cycle in one run — resolve the forecasts whose window has
+closed, log a fresh one per instrument, then patch the running record into the
+published snapshot so the app shows it.
+
+Three rules make the record mean something:
+
+- **A forecast whose window has already closed is never logged.** If ingestion
+  is behind, those are skipped and reported, not backfilled with hindsight.
+- **Logging is idempotent** (unique on symbol/timeframe/horizon/cutoff/model), so
+  a retried job cannot inflate the sample.
+- **Exact ties stay pending** rather than being assigned a convenient direction.
+
+State lives in Supabase, not `data/markets.db` — the cloud runner rebuilds that
+file from scratch every run, so predictions logged there would evaporate. A
+side benefit: local and cloud runs contribute to the *same* record.
+
+`.github/workflows/paper-trade.yml` runs it hourly. The cadence is tied to the
+horizon: you can only forward-test a 1h forecast if you run at least hourly.
+5m/15m would need a run every few minutes; daily is covered by
+`refresh-markets.yml`.
 
 ### How the evaluation avoids fooling itself
 

@@ -440,6 +440,154 @@ class MarketsSummaryCard extends StatelessWidget {
       );
 }
 
+/// The forward test: predictions logged before the outcome existed.
+///
+/// Kept visually distinct from [MarketsSummaryCard] on purpose. That card
+/// reports a backtest, which is only as trustworthy as the person who wrote the
+/// harness. This one reports forecasts that were written down in advance and
+/// never edited — a weaker sample for a long time, but a much stronger kind of
+/// claim. Conflating the two would let backtest confidence borrow credibility
+/// it hasn't earned.
+class LiveRecordCard extends StatelessWidget {
+  final Map data;
+  const LiveRecordCard(this.data, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rec = data['live_record'];
+    if (rec is! Map) return const SizedBox.shrink();
+
+    final cs = Theme.of(context).colorScheme;
+    final muted = cs.onSurface.withOpacity(.6);
+    final overall = rec['overall'] as Map? ?? const {};
+    final n = (overall['n'] as num?)?.toInt() ?? 0;
+    final pending = (rec['pending'] as num?)?.toInt() ?? 0;
+    final breakeven = (rec['breakeven'] as num).toDouble();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.fact_check_outlined, size: 15, color: muted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text('FORWARD TEST — LOGGED BEFORE THE OUTCOME',
+                  style: TextStyle(
+                      fontSize: 11, letterSpacing: 1.1, color: muted)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          if (n == 0) ...[
+            Text(
+                pending == 0
+                    ? 'Nothing logged yet. Once the scheduled job runs, every '
+                        'forecast is written down before its window closes and '
+                        'graded afterwards.'
+                    : '$pending forecast${pending == 1 ? '' : 's'} logged and '
+                        'waiting to settle. Results appear here once their '
+                        'windows close — nothing is scored early.',
+                style: TextStyle(fontSize: 12.5, height: 1.45, color: muted)),
+          ] else ...[
+            Row(children: [
+              Expanded(child: _cell(context, 'Graded', '$n', null)),
+              Expanded(
+                  child: _cell(
+                      context,
+                      'Hit rate',
+                      pctM((overall['hit'] as num).toDouble()),
+                      (overall['hit'] as num).toDouble() >= breakeven
+                          ? AppTheme.hi
+                          : const Color(0xFFE5484D))),
+              Expanded(
+                  child: _cell(context, 'Need', pctM(breakeven), null)),
+              Expanded(child: _cell(context, 'Pending', '$pending', null)),
+            ]),
+            const SizedBox(height: 10),
+            _ciLine(context, overall, breakeven, muted),
+            if (rec['by_timeframe'] is Map &&
+                (rec['by_timeframe'] as Map).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              for (final e in (rec['by_timeframe'] as Map).entries)
+                if (((e.value as Map)['n'] as num?) != null &&
+                    ((e.value as Map)['n'] as num) > 0)
+                  _tfRow(context, e.key as String, e.value as Map, breakeven, muted),
+            ],
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _ciLine(BuildContext c, Map o, double breakeven, Color muted) {
+    final ci = (o['ci'] as List).cast<num>();
+    final enough = o['enough'] == true;
+    final clears = o['clears_breakeven'] == true;
+    final ev = (o['ev'] as num).toDouble();
+
+    final String verdict;
+    final Color color;
+    if (!enough) {
+      verdict = 'Too few to claim anything yet — the range is still too wide '
+          'to separate this from a coin flip.';
+      color = AppTheme.lo;
+    } else if (clears) {
+      verdict = 'Clears breakeven even at the low end of the range. Verify '
+          'before believing it.';
+      color = AppTheme.hi;
+    } else {
+      verdict = 'Below breakeven — acting on these would have lost '
+          '${(ev * 100).abs().toStringAsFixed(1)}% per unit staked.';
+      color = const Color(0xFFE5484D);
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('95% range ${pctM(ci[0].toDouble())} – ${pctM(ci[1].toDouble())}',
+          style: TextStyle(fontSize: 11.5, color: muted)),
+      const SizedBox(height: 6),
+      Text(verdict,
+          style: TextStyle(
+              fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w600, color: color)),
+    ]);
+  }
+
+  Widget _tfRow(BuildContext c, String tf, Map s, double breakeven, Color muted) {
+    final hit = (s['hit'] as num).toDouble();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: [
+        SizedBox(width: 38, child: Text(tf, style: TextStyle(fontSize: 11.5, color: muted))),
+        Text('n=${s['n']}',
+            style: TextStyle(fontSize: 11.5, color: muted)),
+        const Spacer(),
+        Text(pctM(hit),
+            style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                color: hit >= breakeven ? AppTheme.hi : const Color(0xFFE5484D))),
+      ]),
+    );
+  }
+
+  Widget _cell(BuildContext c, String label, String value, Color? color) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 9.5,
+                  color: Theme.of(c).colorScheme.onSurface.withOpacity(.6))),
+          const SizedBox(height: 2),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()])),
+        ],
+      );
+}
+
 /// The standing disclosure for Markets mode. Stronger than the sports one,
 /// because the money at risk is larger and the products involved are riskier.
 class MarketsDisclosure extends StatelessWidget {

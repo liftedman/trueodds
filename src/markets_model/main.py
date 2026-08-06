@@ -341,6 +341,40 @@ def cmd_resolve(_args) -> int:
     return 0
 
 
+# --- paper trading ---------------------------------------------------------
+
+def cmd_paper(args) -> int:
+    """Run the forward-test loop: resolve what's due, log what's new, report.
+
+    Resolve BEFORE logging, deliberately: the bars just ingested are exactly the
+    ones that settle the previous run's forecasts, so grading first keeps the
+    pending queue short and means a single scheduled run does a complete cycle.
+    """
+    from . import paper
+
+    tfs = args.timeframes or ["1h"]
+    do_all = not (args.log_only or args.resolve_only or args.record_only)
+
+    try:
+        if do_all or args.resolve_only:
+            print("Resolving due predictions...")
+            paper.resolve()
+        if do_all or args.log_only:
+            print(f"Logging forecasts ({', '.join(tfs)})...")
+            paper.log(timeframes=tfs, horizon=args.horizon)
+
+        rec = paper.record(payout=args.payout)
+        if not args.no_publish:
+            paper.publish_record(rec)
+
+        print()
+        print(paper.format_record(rec))
+    except paper.PaperStoreUnavailable as exc:
+        print(f"\n{exc}")
+        return 1
+    return 0
+
+
 # --- snapshot for the app --------------------------------------------------
 
 def cmd_report(args) -> int:
@@ -424,6 +458,24 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "resolve", help="settle logged predictions and show the live record"
     ).set_defaults(func=cmd_resolve)
+
+    sp = sub.add_parser(
+        "paper",
+        help="forward-test: resolve due predictions, log new ones, show the record",
+    )
+    sp.add_argument("--timeframes", nargs="*", choices=list(config.TIMEFRAMES))
+    sp.add_argument("--horizon", type=int, default=1)
+    sp.add_argument("--payout", type=float, default=config.DEFAULT_FIXED_PAYOUT)
+    sp.add_argument("--log-only", action="store_true", dest="log_only")
+    sp.add_argument("--resolve-only", action="store_true", dest="resolve_only")
+    sp.add_argument("--record-only", action="store_true", dest="record_only")
+    sp.add_argument(
+        "--no-publish",
+        action="store_true",
+        dest="no_publish",
+        help="don't patch the record into the published snapshot",
+    )
+    sp.set_defaults(func=cmd_paper)
 
     sp = sub.add_parser("report", help="build the app snapshot (data/processed)")
     sp.add_argument("--timeframes", nargs="*", choices=list(config.TIMEFRAMES))

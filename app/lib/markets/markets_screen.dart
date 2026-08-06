@@ -249,6 +249,10 @@ class _InstrumentList extends StatelessWidget {
         children: [
           MarketsSummaryCard(data),
           const SizedBox(height: 12),
+          if (data['live_record'] != null) ...[
+            LiveRecordCard(data),
+            const SizedBox(height: 12),
+          ],
           if (instruments.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 40),

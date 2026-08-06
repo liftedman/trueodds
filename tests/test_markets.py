@@ -26,7 +26,7 @@ import sqlite3
 import numpy as np
 import pytest
 
-from markets_model import config, db, evaluate, features, report, timeutil
+from markets_model import config, db, evaluate, features, paper, report, timeutil
 from markets_model.ingest import crypto
 
 
@@ -268,6 +268,72 @@ def test_coinbase_covers_every_reported_timeframe():
     for tf in report.REPORT_TIMEFRAMES:
         assert tf in crypto._CB_GRANULARITY, f"Coinbase cannot serve {tf}"
         assert crypto._CB_GRANULARITY[tf] == config.TIMEFRAMES[tf] * 60
+
+
+# --- paper trading (the forward test) --------------------------------------
+
+def _pred(p_up: float, up: bool, tf: str = "1h") -> dict:
+    return {"p_up": p_up, "actual_up": up, "timeframe": tf, "symbol": "X",
+            "made_at_ts": 0}
+
+
+def test_paper_scores_the_side_the_model_leaned():
+    """Correct = the leaned side matched, whichever side that was.
+
+    A DOWN call that comes off is a win. Scoring only 'up' calls would flatter
+    or punish the model arbitrarily depending on market drift.
+    """
+    rows = [
+        _pred(0.60, True),    # leaned up, went up   -> win
+        _pred(0.40, False),   # leaned down, went down -> win
+        _pred(0.60, False),   # leaned up, went down -> loss
+        _pred(0.40, True),    # leaned down, went up -> loss
+    ]
+    s = paper.summarise_predictions(rows, 0.80)
+    assert s["n"] == 4
+    assert s["wins"] == 2
+    assert s["hit"] == 0.5
+
+
+def test_paper_ev_matches_the_payout_math():
+    rows = [_pred(0.6, True)] * 60 + [_pred(0.6, False)] * 40  # 60% hit
+    s = paper.summarise_predictions(rows, 0.80)
+    assert s["hit"] == pytest.approx(0.60)
+    assert s["ev"] == pytest.approx(0.60 * 0.80 - 0.40)
+
+
+def test_paper_refuses_to_claim_an_edge_on_a_small_sample():
+    """10 wins from 10 is not evidence, however good it looks."""
+    s = paper.summarise_predictions([_pred(0.9, True)] * 10, 0.80)
+    assert s["hit"] == 1.0
+    assert s["enough"] is False
+    assert s["clears_breakeven"] is False
+
+
+def test_paper_uses_lower_bound_not_point_estimate():
+    """A 56% point estimate whose interval dips below breakeven is not an edge."""
+    n, wins = 600, 336  # 56.0%, comfortably above the 55.56% point threshold
+    rows = [_pred(0.6, True)] * wins + [_pred(0.6, False)] * (n - wins)
+    s = paper.summarise_predictions(rows, 0.80)
+    assert s["hit"] > config.breakeven_hit_rate(0.80)   # point estimate clears
+    assert s["ci"][0] < config.breakeven_hit_rate(0.80)  # but the low end doesn't
+    assert s["clears_breakeven"] is False
+
+
+def test_paper_store_unavailable_is_not_systemexit():
+    """report.py guards with `except Exception`; SystemExit would slip past it.
+
+    If this regresses, a missing paper table takes the whole nightly snapshot
+    down instead of degrading to "no live record yet".
+    """
+    assert issubclass(paper.PaperStoreUnavailable, Exception)
+    assert not issubclass(paper.PaperStoreUnavailable, SystemExit)
+
+
+def test_snapshot_survives_an_unavailable_paper_store(monkeypatch):
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
+    assert report._safe_live_record(0.80) is None
 
 
 # --- the snapshot contract with the Flutter app ----------------------------
