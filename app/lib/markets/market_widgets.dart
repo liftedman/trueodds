@@ -36,10 +36,26 @@ Color changeColor(BuildContext c, double v) {
 /// known. Showing it as though it were current would be the single easiest way
 /// for this mode to mislead someone, so every surface checks this first.
 bool isExpired(Map horizon) {
+  final t = settleTime(horizon);
+  if (t == null) return false;
+  return (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000) > t;
+}
+
+/// When the forecast is actually decided.
+///
+/// `settles_at` is the settling bar's CLOSE. `target` is only its OPEN, so
+/// reading `target` as the deadline marks a forecast expired a full bar early —
+/// an hour early on the 1h horizon, a day early on 1d. Older snapshots predate
+/// the `settles_at` field, so fall back to target plus one bar length inferred
+/// from the gap between cutoff and target.
+int? settleTime(Map horizon) {
+  final s = horizon['settles_at'];
+  if (s is int) return s;
   final target = horizon['target'];
-  if (target is! int) return false;
-  final nowSecs = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-  return nowSecs > target;
+  final cutoff = horizon['cutoff'];
+  if (target is! int) return null;
+  if (cutoff is int && target > cutoff) return target + (target - cutoff);
+  return target;
 }
 
 /// How long ago a forecast's window closed, e.g. '3h ago'. Empty if still open.
@@ -49,9 +65,9 @@ bool isExpired(Map horizon) {
 /// upstream data itself is lagging. Those deserve different reactions, and only
 /// the age distinguishes them.
 String expiredAgo(Map horizon) {
-  final target = horizon['target'];
-  if (target is! int) return '';
-  final secs = (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000) - target;
+  final t = settleTime(horizon);
+  if (t == null) return '';
+  final secs = (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000) - t;
   if (secs <= 0) return '';
   if (secs < 3600) return '${(secs / 60).floor()}m ago';
   if (secs < 86400) return '${(secs / 3600).floor()}h ago';

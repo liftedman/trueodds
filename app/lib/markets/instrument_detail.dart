@@ -203,8 +203,10 @@ class _InstrumentDetailState extends State<InstrumentDetail> {
           const SizedBox(height: 10),
           _kv(c, 'Based on data up to', fmt(h['cutoff'] as int)),
           _kv(c, 'Reference price', priceStr(h['ref_close'] as num?)),
+          // settleTime, not h['target']: target is the settling bar's open, and
+          // the outcome isn't known until it closes.
           _kv(c, isExpired(h) ? 'Settled at' : 'Settles at',
-              fmt(h['target'] as int)),
+              fmt(settleTime(h) ?? h['target'] as int)),
           const SizedBox(height: 8),
           Text(
               'The model sees nothing after the cutoff. It is asking one '

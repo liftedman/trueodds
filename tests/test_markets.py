@@ -320,6 +320,36 @@ def test_paper_uses_lower_bound_not_point_estimate():
     assert s["clears_breakeven"] is False
 
 
+def test_settlement_is_one_bar_after_the_target_bar_opens():
+    """`target_ts` is the settling bar's OPEN; the outcome lands at its CLOSE.
+
+    Treating target_ts itself as the deadline declares a forecast finished a
+    whole bar early — it discarded every 1h forecast made during the current
+    hour, and would have thrown away a full day on the 1d horizon.
+    """
+    target = 1_785_970_800
+    assert paper.settles_at(target, "1h") == target + 3600
+    assert paper.settles_at(target, "5m") == target + 300
+    assert paper.settles_at(target, "1d") == target + 86400
+
+    # The concrete case that exposed it: the settling bar OPENS at target and
+    # closes an hour later, so 19 minutes in, the outcome is still unknown.
+    now = target + 1140
+    assert paper.settles_at(target, "1h") > now, "must still be pending"
+    assert target <= now, "the naive check would wrongly call this closed"
+
+    # And once that bar has closed, it really is due.
+    assert paper.settles_at(target, "1h") <= target + 3600
+
+
+def test_snapshot_exposes_settles_at_one_bar_past_target(temp_db):
+    """The app needs the settle time, not just the target bar's open time."""
+    data = report.build_data(timeframes=["1h"])
+    h = data["instruments"][0]["horizons"]["1h"]
+    assert h["settles_at"] == h["target"] + 3600
+    assert h["target"] == h["cutoff"] + 3600
+
+
 def test_paper_store_unavailable_is_not_systemexit():
     """report.py guards with `except Exception`; SystemExit would slip past it.
 

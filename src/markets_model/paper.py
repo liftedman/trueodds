@@ -117,6 +117,18 @@ def _forecast(symbol: str, timeframe: str, horizon: int = 1) -> dict | None:
     }
 
 
+def settles_at(target_ts: int, timeframe: str) -> int:
+    """When the prediction is actually decided.
+
+    `target_ts` is the settling bar's OPEN time, so the outcome is not known
+    until that bar CLOSES, one bar length later. Comparing target_ts itself
+    against the clock declares a forecast finished a whole bar early - which for
+    a 1h horizon silently threw away every forecast made in the current hour,
+    and for 1d would have discarded a full day.
+    """
+    return target_ts + config.TIMEFRAMES[timeframe] * 60
+
+
 def log(timeframes: list[str] | None = None, horizon: int = 1) -> int:
     """Log a forecast per instrument/timeframe. Returns rows written.
 
@@ -135,7 +147,7 @@ def log(timeframes: list[str] | None = None, horizon: int = 1) -> int:
             f = _forecast(inst.symbol, tf, horizon)
             if f is None:
                 continue
-            if f["target_ts"] <= now:
+            if settles_at(f["target_ts"], tf) <= now:
                 skipped_closed += 1
                 continue
             rows.append(f)
@@ -194,7 +206,15 @@ def resolve() -> int:
 
     graded = 0
     unavailable = 0
+    not_due = 0
     for p in pending:
+        # The query above filters on target_ts (the settling bar's OPEN time),
+        # which is a deliberate superset: a row is only genuinely due once that
+        # bar has CLOSED. Filtering precisely in SQL isn't possible in one query
+        # because the bar length varies by timeframe, so it's done here.
+        if settles_at(int(p["target_ts"]), p["timeframe"]) > now:
+            not_due += 1
+            continue
         with db.connect() as conn:
             row = conn.execute(
                 "SELECT close FROM candles WHERE symbol=? AND timeframe=? AND ts=?",
@@ -226,6 +246,8 @@ def resolve() -> int:
         graded += 1
 
     print(f"  resolved {graded} prediction(s).")
+    if not_due:
+        print(f"  {not_due} not due yet — their settling bar is still open.")
     if unavailable:
         print(
             f"  {unavailable} still pending — their settlement bar is not in the "

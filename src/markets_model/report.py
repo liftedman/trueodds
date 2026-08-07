@@ -99,7 +99,12 @@ def _instrument_block(inst, timeframe: str) -> dict | None:
         "p_up": p_up,
         "ref_close": float(close_arr[last_i]),
         "cutoff": int(ts_arr[last_i]),
+        # `target` is the settling bar's OPEN time; `settles_at` is when the
+        # outcome is actually known (that bar's close). The app must use
+        # settles_at to decide staleness — using target marks a forecast expired
+        # a full bar early.
         "target": int(ts_arr[last_i]) + bar_secs,
+        "settles_at": int(ts_arr[last_i]) + bar_secs * 2,
         "drivers": [
             {"feature": nm, "weight": w}
             for nm, w in model.coefficients(features.FEATURE_NAMES)[:5]
