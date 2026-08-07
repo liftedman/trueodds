@@ -24,8 +24,13 @@ class SportsScreen extends StatefulWidget {
   State<SportsScreen> createState() => _SportsScreenState();
 }
 
+// TickerProviderStateMixin, not SingleTickerProviderStateMixin: didUpdateWidget
+// below replaces the TabController when the visible tab set changes, and each
+// controller needs its own ticker. The Single- variant permits exactly one for
+// the life of the State, so the second one asserts and leaves the TabBar with a
+// half-built controller ("Null check operator used on a null value").
 class _SportsScreenState extends State<SportsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late List<(String, String)> _tabs;
   late TabController _controller;
 
@@ -57,11 +62,19 @@ class _SportsScreenState extends State<SportsScreen>
     // controller when the visible set changes so its length stays in sync.
     final next = _computeTabs();
     if (next.length != _tabs.length) {
+      // Keep the reader where they were. Without this, a background refresh
+      // that drops a tab silently throws you back to Clubs mid-scroll.
+      final keep = next.isEmpty
+          ? 0
+          : _controller.index.clamp(0, next.length - 1);
       _controller.removeListener(_onTab);
       _controller.dispose();
       _tabs = next;
-      _controller = TabController(length: _tabs.length, vsync: this)
-        ..addListener(_onTab);
+      _controller = TabController(
+        length: _tabs.length,
+        initialIndex: keep,
+        vsync: this,
+      )..addListener(_onTab);
     } else {
       _tabs = next;
     }

@@ -375,6 +375,18 @@ def cmd_paper(args) -> int:
     return 0
 
 
+def cmd_prices(args) -> int:
+    """Refresh only the price fields in the published snapshot (cheap)."""
+    from . import prices
+
+    try:
+        prices.publish(prices.collect(timeframes=args.timeframes))
+    except prices.SnapshotUnavailable as exc:
+        print(exc)
+        return 1
+    return 0
+
+
 # --- snapshot for the app --------------------------------------------------
 
 def cmd_report(args) -> int:
@@ -476,6 +488,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="don't patch the record into the published snapshot",
     )
     sp.set_defaults(func=cmd_paper)
+
+    sp = sub.add_parser(
+        "prices", help="refresh only the prices in the published snapshot"
+    )
+    sp.add_argument("--timeframes", nargs="*", choices=list(config.TIMEFRAMES))
+    sp.set_defaults(func=cmd_prices)
 
     sp = sub.add_parser("report", help="build the app snapshot (data/processed)")
     sp.add_argument("--timeframes", nargs="*", choices=list(config.TIMEFRAMES))

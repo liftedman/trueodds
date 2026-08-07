@@ -116,8 +116,16 @@ class _InstrumentDetailState extends State<InstrumentDetail> {
                               color: changeColor(context, change))),
                     ),
                     const Spacer(),
-                    Text('last ${spark.length} × ${inst['change_tf']}',
-                        style: TextStyle(fontSize: 10, color: muted)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('last ${spark.length} × ${inst['change_tf']}',
+                            style: TextStyle(fontSize: 10, color: muted)),
+                        if (inst['price_as_of'] != null)
+                          Text('price ${ageOf(inst['price_as_of'])}',
+                              style: TextStyle(fontSize: 10, color: muted)),
+                      ],
+                    ),
                   ]),
                   const SizedBox(height: 12),
                   if (spark.length > 2)

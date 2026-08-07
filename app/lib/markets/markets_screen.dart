@@ -19,8 +19,11 @@ class MarketsScreen extends StatefulWidget {
   State<MarketsScreen> createState() => _MarketsScreenState();
 }
 
+// TickerProviderStateMixin for the same reason as SportsScreen: didUpdateWidget
+// replaces the TabController when the set of asset classes changes, and the
+// Single- variant only ever allows one ticker.
 class _MarketsScreenState extends State<MarketsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late List<Map> _classes;
   late TabController _controller;
 
@@ -51,11 +54,16 @@ class _MarketsScreenState extends State<MarketsScreen>
     super.didUpdateWidget(old);
     final next = _computeClasses();
     if (next.length != _classes.length) {
+      final keep =
+          next.isEmpty ? 0 : _controller.index.clamp(0, next.length - 1);
       _controller.removeListener(_onTab);
       _controller.dispose();
       _classes = next;
-      _controller = TabController(length: _classes.length, vsync: this)
-        ..addListener(_onTab);
+      _controller = TabController(
+        length: _classes.length,
+        initialIndex: keep,
+        vsync: this,
+      )..addListener(_onTab);
     } else {
       _classes = next;
     }
@@ -183,6 +191,24 @@ class _MarketsScreenState extends State<MarketsScreen>
                     fontSize: 11.5, color: cs.onSurface.withOpacity(.7))),
           ),
         ]),
+        // Prices refresh far more often than the models, so the two freshness
+        // clocks are shown separately. Collapsing them would let a minutes-old
+        // price make an hours-old forecast look current.
+        if (widget.data['prices_updated'] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(children: [
+              Icon(Icons.schedule, size: 12, color: cs.onSurface.withOpacity(.45)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                    'Prices ${ageOf(widget.data['prices_updated'])} · '
+                    'forecasts rebuilt daily',
+                    style: TextStyle(
+                        fontSize: 11, color: cs.onSurface.withOpacity(.55))),
+              ),
+            ]),
+          ),
       ]),
     );
   }
@@ -336,56 +362,68 @@ class _InstrumentList extends StatelessWidget {
             Icon(Icons.chevron_right, size: 18, color: muted),
           ]),
           const SizedBox(height: 8),
-          Row(children: [
-            if (pSide == null)
-              Text('No model at $timeframe',
-                  style: TextStyle(fontSize: 11.5, color: muted))
-            else if (isExpired(h!)) ...[
-              // The window closed before this snapshot reached the device, so
-              // there is no live call to show — only the record.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  border: Border.all(color: muted.withOpacity(.35)),
-                  borderRadius: BorderRadius.circular(7),
+          // Wrap, not Row: on a narrow phone the chips plus the
+          // "measured X · need Y" line exceed the width and a Row overflows.
+          // Wrapping to a second line is the right answer rather than
+          // ellipsising — that comparison is the whole point of this mode, so
+          // it must never be the thing that gets cut off.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (pSide == null)
+                Text('No model at $timeframe',
+                    style: TextStyle(fontSize: 11.5, color: muted))
+              else if (isExpired(h!)) ...[
+                // The window closed before this snapshot reached the device, so
+                // there is no live call to show — only the record.
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: muted.withOpacity(.35)),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.history_toggle_off, size: 11, color: muted),
+                    const SizedBox(width: 4),
+                    Text('closed ${expiredAgo(h)}',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: muted)),
+                  ]),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.history_toggle_off, size: 11, color: muted),
-                  const SizedBox(width: 4),
-                  Text('closed ${expiredAgo(h)}',
+                VerdictChip(vLabel, vColor, dense: true),
+              ] else ...[
+                // The lean is shown deliberately muted, never as a call to act.
+                // The verdict chip beside it carries the weight.
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: muted.withOpacity(.4)),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text('leans $side ${pctM(pSide)}',
                       style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: muted)),
-                ]),
-              ),
-              const SizedBox(width: 6),
-              VerdictChip(vLabel, vColor, dense: true),
-            ] else ...[
-              // The lean is shown deliberately muted, never as a call to act.
-              // The verdict chip beside it carries the weight.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  border: Border.all(color: muted.withOpacity(.4)),
-                  borderRadius: BorderRadius.circular(7),
+                          color: Theme.of(c)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(.75))),
                 ),
-                child: Text('leans $side ${pctM(pSide)}',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(c).colorScheme.onSurface.withOpacity(.75))),
-              ),
-              const SizedBox(width: 6),
-              VerdictChip(vLabel, vColor, dense: true),
+                VerdictChip(vLabel, vColor, dense: true),
+              ],
+              if (h?['track'] != null && (h!['track'] as Map)['enough'] == true)
+                Text(
+                    'measured ${pctM(((h['track'] as Map)['hit'] as num).toDouble())}'
+                    ' · need ${pctM(breakeven)}',
+                    style: TextStyle(fontSize: 10.5, color: muted)),
             ],
-            const Spacer(),
-            if (h?['track'] != null && (h!['track'] as Map)['enough'] == true)
-              Text(
-                  'measured ${pctM(((h['track'] as Map)['hit'] as num).toDouble())}'
-                  ' · need ${pctM(breakeven)}',
-                  style: TextStyle(fontSize: 10.5, color: muted)),
-          ]),
+          ),
         ]),
       ),
     );

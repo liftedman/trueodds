@@ -6,13 +6,24 @@ name: Push snapshot
 
 on:
   schedule:
-    # Every 5 minutes (GitHub's minimum) to keep live scores as fresh as the
-    # data sources allow. GitHub may still delay runs a little under load.
-    - cron: "*/5 * * * *"
+    # Every 15 minutes, NOT the 5 that this used to be.
+    #
+    # The interval must exceed how long a run actually takes, because
+    # cancel-in-progress below means each scheduled run kills the one before it.
+    # Building the snapshot now takes ~4.5 minutes (measured 258s: the models are
+    # refitted from scratch every run, and the payload has grown past 1MB as
+    # leagues were added). Add checkout and dependency install and a run no
+    # longer fits inside 5 minutes, so every run was being cancelled by its
+    # successor and the snapshot silently stopped updating.
+    #
+    # If the build is ever made faster, this can come back down. Whatever it is,
+    # keep it comfortably above the real run time.
+    - cron: "*/15 * * * *"
   workflow_dispatch: {} # adds a manual "Run workflow" button
 
 # A newer run supersedes an older still-running one, so a slow/stale run can't
-# finish late and overwrite fresher data.
+# finish late and overwrite fresher data. Correct, but it is what makes the
+# interval above load-bearing — see the note there before shortening it.
 concurrency:
   group: push-snapshot
   cancel-in-progress: true

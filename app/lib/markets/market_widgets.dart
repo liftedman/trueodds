@@ -58,6 +58,22 @@ String expiredAgo(Map horizon) {
   return '${(secs / 86400).floor()}d ago';
 }
 
+/// Human age of an epoch-seconds timestamp, e.g. '12m ago'. '' if absent.
+///
+/// Prices are refreshed on a much shorter cycle than the models, so the app now
+/// has two different freshness clocks. Showing the price one explicitly is what
+/// stops a ticking price from implying a ticking forecast.
+String ageOf(dynamic epochSecs) {
+  if (epochSecs is! num) return '';
+  final secs =
+      (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000) - epochSecs.toInt();
+  if (secs < 0) return 'just now';
+  if (secs < 90) return '${secs}s ago';
+  if (secs < 3600) return '${(secs / 60).floor()}m ago';
+  if (secs < 86400) return '${(secs / 3600).floor()}h ago';
+  return '${(secs / 86400).floor()}d ago';
+}
+
 /// The honest verdict for one instrument/horizon, derived from its track record.
 ///
 /// Returns (label, colour, explanation). Kept in one place so the list chip and
