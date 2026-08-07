@@ -186,6 +186,12 @@ YAHOO_MAX_PERIOD: dict[str, str] = {
     "1d": "max",
 }
 
+# Horizons the forward test actually logs (see paper-trade.yml). The app only
+# offers a "you vs the model" pick on these, because a user pick is graded from
+# the same logged row as the model's - so on any other horizon the pick could
+# never be settled exactly, and approximating it would undercut the whole point.
+PAPER_TIMEFRAMES = ["1h"]
+
 # Below this many out-of-sample predictions we refuse to publish a hit rate:
 # the confidence interval is so wide the number would mislead. At n=500 the 95%
 # interval on a ~50% rate is roughly +/-4.4pp, which is already wide enough that

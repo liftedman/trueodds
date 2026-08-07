@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sports_model_app/markets/instrument_detail.dart';
+import 'package:sports_model_app/markets/market_pick.dart';
 import 'package:sports_model_app/markets/market_widgets.dart';
 import 'package:sports_model_app/widgets/brand.dart';
 import 'package:sports_model_app/widgets/live_prob.dart' show Sparkline;
@@ -279,6 +280,11 @@ class _InstrumentList extends StatelessWidget {
             LiveRecordCard(data),
             const SizedBox(height: 12),
           ],
+          MarketScoreboardTile(
+            breakeven: breakeven,
+            payout: (data['payout'] as num).toDouble(),
+          ),
+          const SizedBox(height: 12),
           if (instruments.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 40),

@@ -9,6 +9,7 @@ import 'package:sports_model_app/services/crests.dart';
 import 'package:sports_model_app/services/favorites.dart';
 import 'package:sports_model_app/screens/home_screen.dart';
 import 'package:sports_model_app/markets/markets_screen.dart';
+import 'package:sports_model_app/services/market_picks.dart';
 import 'package:sports_model_app/services/markets_api.dart';
 import 'package:sports_model_app/services/notifications.dart';
 import 'package:sports_model_app/screens/news.dart';
@@ -21,6 +22,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favorites.load();
   await beatModel.load();
+  await marketPicks.load();
   await notifications.init();
   runApp(const TrueOddsApp());
 }
@@ -187,6 +189,8 @@ class _TrueOddsAppState extends State<TrueOddsApp> {
         _marketsError = null;
         _marketsLoading = false;
       });
+      // Grade any of the user's own calls whose bar has now settled upstream.
+      marketPicks.grade();
     } catch (e) {
       if (!mounted) return;
       setState(() {

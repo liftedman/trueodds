@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sports_model_app/markets/market_pick.dart';
 import 'package:sports_model_app/markets/market_widgets.dart';
 import 'package:sports_model_app/widgets/live_prob.dart' show Sparkline;
 import 'package:sports_model_app/widgets/theme.dart';
@@ -44,6 +45,12 @@ class _InstrumentDetailState extends State<InstrumentDetail> {
   late String _tf;
 
   Map get _horizons => widget.instrument['horizons'] as Map;
+
+  /// Whether the current horizon is one the forward test grades.
+  bool get _forwardTested {
+    final tfs = widget.data['paper_timeframes'] as List?;
+    return tfs != null && tfs.contains(_tf);
+  }
   List<String> get _available =>
       [for (final t in widget.data['timeframes'] as List) t as String]
           .where(_horizons.containsKey)
@@ -172,6 +179,24 @@ class _InstrumentDetailState extends State<InstrumentDetail> {
                 expiredSince: expiredAgo(h),
               ),
               const SizedBox(height: 12),
+              // Only offered on horizons the forward test logs: a user pick is
+              // graded from the same settled row as the model's, so on any other
+              // horizon it could never be settled exactly.
+              if (_forwardTested) ...[
+                MarketPickCard(
+                  symbol: inst['symbol'] as String,
+                  name: inst['name'] as String,
+                  timeframe: _tf,
+                  madeAtTs: h['cutoff'] as int,
+                  settlesAt: settleTime(h) ?? (h['target'] as int),
+                  refClose: (h['ref_close'] as num).toDouble(),
+                  modelPUp: pUp,
+                  breakeven: breakeven,
+                  accent: accent,
+                  open: !isExpired(h),
+                ),
+                const SizedBox(height: 12),
+              ],
               _windowCard(context, h, muted),
               const SizedBox(height: 12),
               _trackCard(context, track, muted, breakeven),

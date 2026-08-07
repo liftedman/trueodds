@@ -117,6 +117,13 @@ def _forecast(symbol: str, timeframe: str, horizon: int = 1) -> dict | None:
     }
 
 
+# How long past its settlement time a prediction may wait for its bar before we
+# accept the bar is never coming. Generous relative to normal upstream lag
+# (usually well under one bar), but short enough that a weekend does not leave
+# junk sitting in the pending queue for days.
+VOID_GRACE_BARS = 3
+
+
 def settles_at(target_ts: int, timeframe: str) -> int:
     """When the prediction is actually decided.
 
@@ -207,6 +214,7 @@ def resolve() -> int:
     graded = 0
     unavailable = 0
     not_due = 0
+    voided: list[str] = []
     for p in pending:
         # The query above filters on target_ts (the settling bar's OPEN time),
         # which is a deliberate superset: a row is only genuinely due once that
@@ -221,6 +229,25 @@ def resolve() -> int:
                 (p["symbol"], p["timeframe"], p["target_ts"]),
             ).fetchone()
         if row is None:
+            # The bar may simply not be ingested yet — or it may never exist. A
+            # forecast logged just before a market closes targets a bar that
+            # never forms (FX stops on Friday evening), so it can never settle.
+            # Those are VOID: not a win, not a loss, and counting them either way
+            # would corrupt the record. They are dropped rather than graded,
+            # which is safe because the criterion is "the bar never existed",
+            # never "the outcome was unflattering".
+            bar_secs = config.TIMEFRAMES[p["timeframe"]] * 60
+            if now - settles_at(int(p["target_ts"]), p["timeframe"]) > (
+                VOID_GRACE_BARS * bar_secs
+            ):
+                voided.append(f"{p['symbol']}/{p['timeframe']}")
+                requests.delete(
+                    f"{url}/rest/v1/{TABLE}",
+                    headers=_headers(key, {"Prefer": "return=minimal"}),
+                    params={"id": f"eq.{p['id']}"},
+                    timeout=_TIMEOUT,
+                ).raise_for_status()
+                continue
             unavailable += 1
             continue  # settlement bar not ingested yet; try again next run
 
@@ -247,11 +274,17 @@ def resolve() -> int:
 
     print(f"  resolved {graded} prediction(s).")
     if not_due:
-        print(f"  {not_due} not due yet — their settling bar is still open.")
+        print(f"  {not_due} not due yet - their settling bar is still open.")
     if unavailable:
         print(
-            f"  {unavailable} still pending — their settlement bar is not in the "
+            f"  {unavailable} still pending - their settlement bar is not in the "
             "local database yet (ingest that timeframe, then resolve again)."
+        )
+    if voided:
+        print(
+            f"  {len(voided)} VOID - the settling bar never formed, so these can "
+            "never be graded (typically logged just before a market closed): "
+            + ", ".join(voided)
         )
     return graded
 

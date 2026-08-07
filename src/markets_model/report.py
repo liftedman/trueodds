@@ -193,6 +193,8 @@ def build_data(timeframes: list[str] | None = None, payout: float | None = None)
         "payout": payout,
         "breakeven": breakeven,
         "min_sample": config.MIN_SAMPLE_FOR_CLAIM,
+        # Horizons the app may offer a "you vs the model" pick on.
+        "paper_timeframes": config.PAPER_TIMEFRAMES,
         "live_record": _safe_live_record(payout),
         "timeframes": timeframes,
         "asset_classes": [
