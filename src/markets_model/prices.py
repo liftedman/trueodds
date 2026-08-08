@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 
 import requests
 
@@ -79,57 +80,49 @@ def collect(timeframes: list[str] | None = None) -> dict[str, dict]:
     return out
 
 
+ROW_ID = "markets_prices"
+
+
 def publish(prices: dict[str, dict] | None = None) -> int:
-    """Patch price fields into the snapshot row. Returns instruments updated."""
+    """Publish prices to their OWN snapshot row. Returns instruments written.
+
+    Writes id='markets_prices' rather than patching the main row, and the app
+    merges the two on read.
+
+    This is not tidiness, it is a correctness fix. The earlier version read the
+    whole 'markets' blob, edited the price fields, and wrote it all back. Two
+    writers doing that concurrently lose data: a full `push` was observed being
+    silently reverted two seconds later by the scheduled job's read-modify-write,
+    which restored a pre-push copy of every field it had not touched. Each writer
+    owning one row means every write is a complete upsert of data that writer
+    owns outright, so there is nothing to clobber.
+    """
     url, key = _creds()
     prices = prices if prices is not None else collect()
     if not prices:
         print("  no prices to publish (nothing ingested).")
         return 0
 
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
+    payload = {
+        "id": ROW_ID,
+        "data": {
+            "prices": prices,
+            "prices_updated": max(p["as_of"] for p in prices.values()),
+        },
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    resp = requests.get(
+    resp = requests.post(
         f"{url}/rest/v1/snapshot",
-        headers=headers,
-        params={"select": "data", "id": "eq.markets"},
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        },
+        data=json.dumps(payload),
         timeout=_TIMEOUT,
     )
     resp.raise_for_status()
-    rows = resp.json()
-    if not rows:
-        raise SnapshotUnavailable(
-            "No markets snapshot to patch — run `push` first."
-        )
-
-    data = rows[0]["data"]
-    updated = 0
-    for inst in data.get("instruments", []):
-        p = prices.get(inst["symbol"])
-        if not p:
-            continue
-        inst["last"] = p["last"]
-        inst["change"] = p["change"]
-        inst["change_tf"] = p["change_tf"]
-        inst["spark"] = p["spark"]
-        inst["price_as_of"] = p["as_of"]
-        updated += 1
-
-    # Top-level stamp so the app can show price freshness separately from the
-    # snapshot build time — they are now different things.
-    data["prices_updated"] = max(p["as_of"] for p in prices.values())
-
-    patch = requests.patch(
-        f"{url}/rest/v1/snapshot",
-        headers={**headers, "Prefer": "return=minimal"},
-        params={"id": "eq.markets"},
-        data=json.dumps({"data": data, "updated_at": "now()"}),
-        timeout=_TIMEOUT,
-    )
-    patch.raise_for_status()
-    print(f"  refreshed prices for {updated} instrument(s).")
-    return updated
+    print(f"  refreshed prices for {len(prices)} instrument(s).")
+    return len(prices)

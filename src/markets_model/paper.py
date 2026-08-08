@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime, timezone
 
 import requests
 
@@ -413,49 +414,42 @@ def _pending_count(url: str, key: str) -> int:
     return 0
 
 
+RECORD_ROW_ID = "markets_record"
+
+
 def publish_record(rec: dict | None = None) -> bool:
-    """Patch the live record into the published snapshot, in place.
+    """Publish the live record to its OWN snapshot row; the app merges on read.
 
-    The hourly job cannot afford to rebuild the whole snapshot: doing that needs
-    every timeframe ingested AND the eval_runs table, and the cloud runner
-    rebuilds its database from scratch each time, so a cheap hourly `push` would
-    republish with missing horizons and null track records - strictly worse than
-    what is already live.
+    The frequent job cannot afford a full `push` (that needs every timeframe
+    ingested AND the eval_runs table, neither of which the ephemeral runner has),
+    so the record has to be published separately from the main snapshot.
 
-    So instead we read the existing row, swap in the one key that changed, and
-    write it back. Small (~117KB) and safe against the daily full rebuild, which
-    runs at a different time and simply recomputes this field anyway.
-
-    Returns False if there is no snapshot row yet to patch.
+    It gets its own row rather than being patched into the main one. An earlier
+    version read the whole 'markets' blob, swapped in this key, and wrote it all
+    back — and was observed silently reverting a concurrent full push two seconds
+    after it landed, restoring stale copies of every field it had not touched.
+    Owning one row makes each write a complete upsert of data this writer owns,
+    so concurrent writers cannot clobber each other.
     """
     url, key = _creds()
     rec = rec if rec is not None else record()
 
-    resp = requests.get(
+    payload = {
+        "id": RECORD_ROW_ID,
+        "data": {"live_record": rec},
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    resp = requests.post(
         f"{url}/rest/v1/snapshot",
-        headers=_headers(key),
-        params={"select": "data", "id": "eq.markets"},
+        headers=_headers(
+            key, {"Prefer": "resolution=merge-duplicates,return=minimal"}
+        ),
+        data=json.dumps(payload),
         timeout=_TIMEOUT,
     )
     resp.raise_for_status()
-    rows = resp.json()
-    if not rows:
-        print("  no markets snapshot to patch yet — run `push` first.")
-        return False
-
-    data = rows[0]["data"]
-    data["live_record"] = rec
-
-    patch = requests.patch(
-        f"{url}/rest/v1/snapshot",
-        headers=_headers(key, {"Prefer": "return=minimal"}),
-        params={"id": "eq.markets"},
-        data=json.dumps({"data": data, "updated_at": "now()"}),
-        timeout=_TIMEOUT,
-    )
-    patch.raise_for_status()
     n = rec.get("overall", {}).get("n", 0)
-    print(f"  published live record to the snapshot ({n} graded).")
+    print(f"  published live record ({n} graded).")
     return True
 
 
