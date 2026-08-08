@@ -350,6 +350,73 @@ def test_snapshot_exposes_settles_at_one_bar_past_target(temp_db):
     assert h["target"] == h["cutoff"] + 3600
 
 
+def test_settlement_uses_the_next_bar_that_exists_not_a_calendar_offset(
+    tmp_path, monkeypatch
+):
+    """Across a session gap, the settling bar is the next ROW, not the next hour.
+
+    Bar series are not contiguous in calendar time — FX stops for the weekend,
+    equities close overnight. Looking for a bar at `made_at + one bar length`
+    finds nothing across a gap, which discarded every forecast made before a
+    close. features.build_dataset scores against `close[i + horizon]`, the next
+    available row, so settlement has to agree with that.
+    """
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "gap.db")
+    db.init_db()
+
+    friday_21 = 1_785_970_800          # a Friday 21:00 bar
+    monday_00 = friday_21 + 3 * 86400  # next bar is three days later
+
+    db.upsert_candles([
+        ("EURUSD", "1h", friday_21, 1.10, 1.11, 1.09, 1.1050, None),
+        ("EURUSD", "1h", monday_00, 1.11, 1.12, 1.10, 1.1180, None),
+    ])
+
+    # The calendar-offset slot is empty — this is what used to void the forecast.
+    with db.connect() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM candles WHERE symbol='EURUSD' AND timeframe='1h' AND ts=?",
+            (friday_21 + 3600,),
+        ).fetchone() is None
+
+    row = paper.next_bar_after("EURUSD", "1h", friday_21)
+    assert row is not None, "must settle against Monday, not give up on Saturday"
+    assert int(row["ts"]) == monday_00
+    assert float(row["close"]) == pytest.approx(1.1180)
+
+
+def test_next_bar_returns_none_while_the_market_is_still_shut(tmp_path, monkeypatch):
+    """With no later bar yet, a forecast waits rather than being voided."""
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "shut.db")
+    db.init_db()
+    ts = 1_785_970_800
+    db.upsert_candles([("EURUSD", "1h", ts, 1.10, 1.11, 1.09, 1.105, None)])
+    assert paper.next_bar_after("EURUSD", "1h", ts) is None
+
+
+def test_void_grace_is_long_enough_to_survive_a_weekend():
+    """The grace must exceed a market closure, or real forecasts get discarded.
+
+    A Friday-evening forecast waits ~48h for Monday's bar on an hourly series.
+    A grace of only a few bars would void it before the market reopened.
+    """
+    weekend_hours = 48
+    assert paper.VOID_GRACE_BARS > weekend_hours * 0.5, (
+        "grace must comfortably outlast a weekend gap"
+    )
+
+
+def test_both_forward_tested_horizons_are_offered_to_the_app():
+    """PAPER_TIMEFRAMES drives which horizons show a pick card."""
+    assert "1h" in config.PAPER_TIMEFRAMES
+    assert "1d" in config.PAPER_TIMEFRAMES
+    for tf in config.PAPER_TIMEFRAMES:
+        assert tf in config.TIMEFRAMES
+        assert tf in report.REPORT_TIMEFRAMES, (
+            f"{tf} must also be in the snapshot, or the app has nothing to show"
+        )
+
+
 def test_paper_store_unavailable_is_not_systemexit():
     """report.py guards with `except Exception`; SystemExit would slip past it.
 

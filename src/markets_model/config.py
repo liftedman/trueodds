@@ -190,7 +190,13 @@ YAHOO_MAX_PERIOD: dict[str, str] = {
 # offers a "you vs the model" pick on these, because a user pick is graded from
 # the same logged row as the model's - so on any other horizon the pick could
 # never be settled exactly, and approximating it would undercut the whole point.
-PAPER_TIMEFRAMES = ["1h"]
+#
+# 1d is here as well as 1h because it is the better horizon for a human: one
+# call per instrument per day, no need to sit on the app, and a day is long
+# enough that a real read could plausibly matter. It reaches a meaningful
+# sample slower per instrument but faster in practice, because nobody actually
+# makes twenty-four hourly calls.
+PAPER_TIMEFRAMES = ["1h", "1d"]
 
 # Below this many out-of-sample predictions we refuse to publish a hit rate:
 # the confidence interval is so wide the number would mislead. At n=500 the 95%

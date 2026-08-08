@@ -117,11 +117,39 @@ def _forecast(symbol: str, timeframe: str, horizon: int = 1) -> dict | None:
     }
 
 
-# How long past its settlement time a prediction may wait for its bar before we
-# accept the bar is never coming. Generous relative to normal upstream lag
-# (usually well under one bar), but short enough that a weekend does not leave
-# junk sitting in the pending queue for days.
-VOID_GRACE_BARS = 3
+# Garbage collection only. A prediction waits this many bar-lengths for a
+# settling bar to appear before we accept none is coming. Deliberately generous:
+# a market being shut (a weekend, a holiday) is a perfectly normal reason for no
+# new bar, and voiding those would throw away real forecasts. In practice this
+# only ever fires for an instrument that has stopped trading altogether.
+VOID_GRACE_BARS = 30
+
+
+def next_bar_after(symbol: str, timeframe: str, made_at_ts: int):
+    """The bar that settles a forecast made at `made_at_ts`: the next one there is.
+
+    NOT the bar at `made_at_ts + one bar length`. Bar series are not contiguous in
+    calendar time — FX stops for the weekend, equities close overnight — so
+    calendar arithmetic points at slots where no bar exists. It also disagrees
+    with the model: features.build_dataset scores against `close[i + horizon]`,
+    the next available ROW, which after a Friday is Monday.
+
+    Looking up the next actual bar makes settlement match the definition the
+    model was trained and evaluated on, and stops every forecast made before a
+    session gap from being discarded.
+
+    Only closed bars are ever stored (both ingest paths drop the still-forming
+    one), so any row found here has settled.
+    """
+    with db.connect() as conn:
+        return conn.execute(
+            """
+            SELECT ts, close FROM candles
+            WHERE symbol = ? AND timeframe = ? AND ts > ?
+            ORDER BY ts ASC LIMIT 1
+            """,
+            (symbol, timeframe, made_at_ts),
+        ).fetchone()
 
 
 def settles_at(target_ts: int, timeframe: str) -> int:
@@ -196,7 +224,7 @@ def resolve() -> int:
         f"{url}/rest/v1/{TABLE}",
         headers=_headers(key),
         params={
-            "select": "id,symbol,timeframe,target_ts,ref_close",
+            "select": "id,symbol,timeframe,made_at_ts,target_ts,ref_close",
             "actual_up": "is.null",
             "target_ts": f"lte.{now}",
             "order": "target_ts.asc",
@@ -216,30 +244,19 @@ def resolve() -> int:
     not_due = 0
     voided: list[str] = []
     for p in pending:
-        # The query above filters on target_ts (the settling bar's OPEN time),
-        # which is a deliberate superset: a row is only genuinely due once that
-        # bar has CLOSED. Filtering precisely in SQL isn't possible in one query
-        # because the bar length varies by timeframe, so it's done here.
-        if settles_at(int(p["target_ts"]), p["timeframe"]) > now:
-            not_due += 1
-            continue
-        with db.connect() as conn:
-            row = conn.execute(
-                "SELECT close FROM candles WHERE symbol=? AND timeframe=? AND ts=?",
-                (p["symbol"], p["timeframe"], p["target_ts"]),
-            ).fetchone()
+        # The SQL filter on target_ts is only a cheap superset. What actually
+        # settles a forecast is the next bar that exists after the cutoff, so the
+        # decision is made from the bar itself rather than from the clock.
+        row = next_bar_after(p["symbol"], p["timeframe"], int(p["made_at_ts"]))
+
         if row is None:
-            # The bar may simply not be ingested yet — or it may never exist. A
-            # forecast logged just before a market closes targets a bar that
-            # never forms (FX stops on Friday evening), so it can never settle.
-            # Those are VOID: not a win, not a loss, and counting them either way
-            # would corrupt the record. They are dropped rather than graded,
-            # which is safe because the criterion is "the bar never existed",
-            # never "the outcome was unflattering".
+            # No later bar yet. Usually that just means the market is shut or the
+            # ingest is behind, and the right thing to do is wait — voiding here
+            # is what threw away every pre-weekend forecast before. Only give up
+            # after a long grace, which in practice means the instrument has
+            # stopped trading.
             bar_secs = config.TIMEFRAMES[p["timeframe"]] * 60
-            if now - settles_at(int(p["target_ts"]), p["timeframe"]) > (
-                VOID_GRACE_BARS * bar_secs
-            ):
+            if now - int(p["made_at_ts"]) > VOID_GRACE_BARS * bar_secs:
                 voided.append(f"{p['symbol']}/{p['timeframe']}")
                 requests.delete(
                     f"{url}/rest/v1/{TABLE}",
@@ -249,7 +266,14 @@ def resolve() -> int:
                 ).raise_for_status()
                 continue
             unavailable += 1
-            continue  # settlement bar not ingested yet; try again next run
+            continue
+
+        # Defensive: only closed bars are stored today, but if that ever changed
+        # this would stop a forming bar from settling anything early.
+        bar_secs = config.TIMEFRAMES[p["timeframe"]] * 60
+        if int(row["ts"]) + bar_secs > now:
+            not_due += 1
+            continue
 
         settle = float(row["close"])
         ref = float(p["ref_close"])

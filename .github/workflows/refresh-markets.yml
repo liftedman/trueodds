@@ -88,3 +88,14 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           PYTHONPATH: src
         run: python -m markets_model.main push
+
+      # The daily horizon's forward test belongs here rather than in
+      # paper-trade.yml: this is the job that ingests 1d bars, and a daily bar
+      # only needs looking at once a day. Runs after push so the snapshot's
+      # live_record is refreshed by the paper step's own publish.
+      - name: Forward test the daily horizon
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PYTHONPATH: src
+        run: python -m markets_model.main paper --timeframes 1d
