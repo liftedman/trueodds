@@ -173,6 +173,28 @@ CREATE TABLE IF NOT EXISTS friendly_fixtures (
 
 CREATE INDEX IF NOT EXISTS idx_friendly_date ON friendly_fixtures (date);
 
+-- FINISHED club friendlies, kept so "Beat the Model" picks can be graded.
+--
+-- Needed because friendly_fixtures above is cleared and refilled with upcoming
+-- matches only, so a friendly vanishes the moment it ends and a pick against it
+-- could never be settled. Unlike that table this one ACCUMULATES: results are
+-- history, and deleting them would silently void picks.
+--
+-- Populated by the daily friendlies ingest (one throttled API call per club,
+-- ~3 minutes) so the 15-minute snapshot push can read it in milliseconds
+-- instead of repeating the fetch. Names are stored raw, as elsewhere; the report
+-- resolves them to model spelling.
+CREATE TABLE IF NOT EXISTS friendly_results (
+    date        TEXT NOT NULL,          -- YYYY-MM-DD
+    home        TEXT NOT NULL,          -- raw TheSportsDB name
+    away        TEXT NOT NULL,
+    home_score  INTEGER NOT NULL,
+    away_score  INTEGER NOT NULL,
+    PRIMARY KEY (date, home, away)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friendly_results_date ON friendly_results (date);
+
 -- Cache of TheSportsDB team ids, resolved once per team by name search. Lets
 -- the daily friendlies ingest skip re-resolving known clubs.
 CREATE TABLE IF NOT EXISTS tsdb_team_ids (

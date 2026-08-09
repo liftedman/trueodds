@@ -26,6 +26,10 @@ class _TodayScreenState extends State<TodayScreen> {
       for (final f in (fx ?? const [])) out.add({'key': key, 'fx': f as Map});
     }
     (data['leagues'] as Map?)?.forEach((_, lg) => add('clubs', lg['fixtures'] as List?));
+    // Friendlies belong here too. They were a Sports tab but never reached this
+    // list, so during pre-season — when friendlies are the only football on —
+    // Today looked empty even though the Friendlies tab had matches.
+    add('friendlies', (data['friendlies'] as Map?)?['fixtures'] as List?);
     add('wc', (data['wc'] as Map?)?['fixtures'] as List?);
     add('cl', (data['cl'] as Map?)?['fixtures'] as List?);
     add('nba', (data['nba'] as Map?)?['fixtures'] as List?);
@@ -218,6 +222,9 @@ class _TodayScreenState extends State<TodayScreen> {
 /// sportKey -> (emoji, short label) for the per-tile sport badge.
 const _sportBadge = {
   'clubs': ('⚽', 'Football'),
+  // Labelled "Friendly", not "Football": these are exhibitions with rotating
+  // squads, and the tile should say so before you read a probability off it.
+  'friendlies': ('🤝', 'Friendly'),
   'wc': ('🏆', 'World Cup'),
   'cl': ('⭐', 'UCL'),
   'nba': ('🏀', 'NBA'),

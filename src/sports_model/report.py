@@ -11,6 +11,7 @@ pick any two teams and watch the model think, with no server.
 
 from __future__ import annotations
 
+import functools
 import json
 from datetime import date
 
@@ -216,6 +217,7 @@ def _safe_results() -> list[dict]:
     # Each sport is fetched independently so one failure (e.g. a missing table
     # for an off-season league) can't wipe out the others. 10-day window gives
     # picks a comfortable grading period.
+    from .ingest import friendlies
     from .models import espn, nba, wnba, summer, nfl, bball
 
     def feed(sport, names_fn):
@@ -230,6 +232,22 @@ def _safe_results() -> list[dict]:
     feed("nfl", lambda: nfl.TEAM_NAMES)
     feed("nbl", lambda: bball.team_names("nbl"))
     feed("ncaam", lambda: bball.team_names("ncaam"))
+
+    # Friendlies need their own feed. A finished friendly leaves no trace
+    # elsewhere — the ingest skips finished statuses and clears the table each
+    # pass — so without this a pick on one could never be graded and just sat
+    # there after the match ended.
+    try:
+        from .models.club_schedule import _norm
+
+        model, _diag = _club_elo()
+        if model is not None:
+            universe = set(model.ratings)
+            out += friendlies.recent_results(
+                universe, {_norm(t): t for t in universe}
+            )
+    except Exception:
+        pass
     return out
 
 
@@ -450,13 +468,29 @@ def _build_nfl_data() -> dict | None:
     }
 
 
-def _build_cl_data() -> dict | None:
-    """Unified cross-league Elo for the Champions League predictor + fixtures."""
-    from .models import club_elo, football_data
+@functools.lru_cache(maxsize=1)
+def _club_elo():
+    """The unified cross-league club Elo, built once per run.
+
+    Three separate places need it (Champions League, friendlies, and grading
+    friendly results) and it is the most expensive model we fit. It used to be
+    rebuilt from scratch for each, which is pure waste inside a single report.
+    Returns (model, diag), or (None, None) if it cannot be built.
+    """
+    from .models import club_elo
 
     try:
-        model, diag = club_elo.build()
-    except Exception:
+        return club_elo.build()
+    except Exception:  # noqa: BLE001 - a missing DB shouldn't sink the report
+        return None, None
+
+
+def _build_cl_data() -> dict | None:
+    """Unified cross-league Elo for the Champions League predictor + fixtures."""
+    from .models import football_data
+
+    model, diag = _club_elo()
+    if model is None:
         return None
     cl_teams = diag.get("cl_teams") or []
     if not cl_teams:
@@ -487,7 +521,6 @@ def _build_friendlies() -> dict | None:
     from datetime import date as _date
 
     from . import db
-    from .models import club_elo
     from .models.club_schedule import _LIVE, _norm, _resolve, _to_local
 
     try:
@@ -500,9 +533,8 @@ def _build_friendlies() -> dict | None:
     if not rows:
         return None
 
-    try:
-        model, _diag = club_elo.build()
-    except Exception:
+    model, _diag = _club_elo()
+    if model is None:
         return None
     universe = set(model.ratings)
     norm_map = {_norm(t): t for t in universe}

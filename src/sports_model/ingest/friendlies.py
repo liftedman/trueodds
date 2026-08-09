@@ -24,6 +24,9 @@ from ..models.club_schedule import _ALIAS
 
 _SEARCH = "https://www.thesportsdb.com/api/v1/json/3/searchteams.php"
 _NEXT = "https://www.thesportsdb.com/api/v1/json/3/eventsnext.php"
+# A team's most recent finished events. Note the payload key is "results", not
+# "events" like the other endpoints.
+_LAST = "https://www.thesportsdb.com/api/v1/json/3/eventslast.php"
 _FRIENDLIES_LEAGUE_ID = "4569"  # TheSportsDB "Club Friendlies"
 _FINISHED = {"FT", "AET", "PEN", "Match Finished", "FT_PEN"}
 _TIMEOUT = 15
@@ -181,6 +184,87 @@ def _fetch_friendlies(session: requests.Session, ids: dict[str, str]) -> list[di
     return out
 
 
+def _fetch_results(session: requests.Session, ids: dict[str, str]) -> list[dict]:
+    """Finished friendlies from each club's last events. Raw names.
+
+    One throttled call per club (~3 minutes for the top-5 pool), which is why
+    this runs in the daily ingest and not in the 15-minute snapshot push.
+    """
+    seen: set[tuple] = set()
+    out: list[dict] = []
+    for tid in {v for v in ids.values() if v}:
+        try:
+            events = _get(session, _LAST, {"id": tid}).get("results") or []
+        except Exception:  # noqa: BLE001 - one club failing must not sink the feed
+            continue
+        time.sleep(_THROTTLE)
+        for e in events:
+            if str(e.get("idLeague")) != _FRIENDLIES_LEAGUE_ID:
+                continue
+            if (e.get("strStatus") or "").strip() not in _FINISHED:
+                continue
+            d = e.get("dateEvent")
+            home = (e.get("strHomeTeam") or "").strip()
+            away = (e.get("strAwayTeam") or "").strip()
+            if not (d and home and away):
+                continue
+            try:
+                hs = int(e.get("intHomeScore"))
+                aws = int(e.get("intAwayScore"))
+            except (TypeError, ValueError):
+                continue  # no score yet — not gradeable
+            key = (d, home, away)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"date": d, "home": home, "away": away,
+                        "home_score": hs, "away_score": aws})
+    return out
+
+
+def recent_results(universe, norm_map, days: int = 14) -> list[dict]:
+    """Finished friendlies for grading "Beat the Model" picks. Cheap DB read.
+
+    A finished friendly leaves no trace anywhere else — the fixture fetch skips
+    finished statuses and `run` clears that table each pass — so without this a
+    pick on one could never be graded and simply sat there after the match ended.
+
+    Names resolve through the SAME universe/norm_map the report uses for the
+    fixtures, because a pick is stored against the displayed name; resolving
+    differently here would silently fail to match it.
+    """
+    from datetime import date, timedelta
+
+    from ..models.club_schedule import _resolve
+
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    try:
+        with db.connect() as conn:
+            rows = [dict(r) for r in conn.execute(
+                "SELECT date, home, away, home_score, away_score "
+                "FROM friendly_results WHERE date >= ? ORDER BY date DESC",
+                (cutoff,))]
+    except Exception:  # noqa: BLE001 - table predates this feature
+        return []
+
+    out: list[dict] = []
+    for r in rows:
+        home = _resolve(r["home"], universe, norm_map)
+        away = _resolve(r["away"], universe, norm_map)
+        if not home or not away:
+            continue
+        hs, aws = r["home_score"], r["away_score"]
+        out.append({
+            "sport": "friendlies",
+            "date": r["date"],
+            "home": home,
+            "away": away,
+            "result": "H" if hs > aws else ("A" if aws > hs else "D"),
+            "score": f"{hs}-{aws}",
+        })
+    return out
+
+
 def run() -> None:
     """Resolve club ids (cached), fetch upcoming friendlies, replace the table."""
     db.init_db()
@@ -200,3 +284,15 @@ def run() -> None:
             "(date, time_utc, home, away, status) "
             "VALUES (:date, :time_utc, :home, :away, :status)",
             fixtures)
+
+    # Finished friendlies, so picks on them can be graded once the match ends.
+    # ACCUMULATED, never cleared: unlike fixtures, results are history, and
+    # dropping them would silently void a user's pending pick.
+    results = _fetch_results(session, ids)
+    print(f"  found {len(results)} finished friendly result(s)")
+    with db.connect() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO friendly_results "
+            "(date, home, away, home_score, away_score) "
+            "VALUES (:date, :home, :away, :home_score, :away_score)",
+            results)
