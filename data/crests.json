@@ -11,6 +11,7 @@
   "Newcastle": "https://crests.football-data.org/67.png",
   "Sunderland": "https://crests.football-data.org/71.png",
   "Tottenham": "https://crests.football-data.org/73.png",
+  "Hull": "https://crests.football-data.org/322.png",
   "Leeds": "https://crests.football-data.org/341.png",
   "Ipswich": "https://crests.football-data.org/349.png",
   "Crystal Palace": "https://crests.football-data.org/354.png",
@@ -22,8 +23,9 @@
   "Osasuna": "https://crests.football-data.org/79.png",
   "Espanol": "https://crests.football-data.org/80.png",
   "Getafe": "https://crests.football-data.org/82.png",
+  "Malaga": "https://crests.football-data.org/84.png",
   "Real Madrid": "https://crests.football-data.org/86.png",
-  "Vallecano": "https://crests.football-data.org/87.png",
+  "Rayo Vallecano": "https://crests.football-data.org/87.png",
   "Levante": "https://crests.football-data.org/88.png",
   "Betis": "https://crests.football-data.org/90.png",
   "Sociedad": "https://crests.football-data.org/92.png",
@@ -32,7 +34,8 @@
   "Alaves": "https://crests.football-data.org/263.png",
   "Elche": "https://crests.football-data.org/285.png",
   "Celta": "https://crests.football-data.org/558.png",
-  "Sevilla": "https://crests.football-data.org/559.png"
+  "Sevilla": "https://crests.football-data.org/559.png",
+  "Santander": "https://crests.football-data.org/5335.png"
  },
  "D1": {
   "FC Koln": "https://crests.football-data.org/1.png",
