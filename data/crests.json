@@ -17,7 +17,8 @@
   "Crystal Palace": "https://crests.football-data.org/354.png",
   "Brighton": "https://crests.football-data.org/397.png",
   "Brentford": "https://crests.football-data.org/402.png",
-  "Bournemouth": "https://crests.football-data.org/bournemouth.png"
+  "Bournemouth": "https://crests.football-data.org/bournemouth.png",
+  "Coventry": "https://crests.football-data.org/1076.png"
  },
  "SP1": {
   "Osasuna": "https://crests.football-data.org/79.png",
@@ -53,6 +54,7 @@
   "Ein Frankfurt": "https://crests.football-data.org/19.png",
   "Union Berlin": "https://crests.football-data.org/28.png",
   "Paderborn": "https://crests.football-data.org/29.png",
+  "Elversberg": "https://crests.football-data.org/719.png",
   "RB Leipzig": "https://crests.football-data.org/721.png"
  },
  "I1": {
@@ -96,6 +98,7 @@
  },
  "E1": {
   "Blackburn": "https://crests.football-data.org/59.png",
+  "Bolton": "https://crests.football-data.org/60.png",
   "Norwich": "https://crests.football-data.org/68.png",
   "QPR": "https://crests.football-data.org/69.png",
   "Stoke": "https://crests.football-data.org/70.png",
@@ -112,8 +115,10 @@
   "Millwall": "https://crests.football-data.org/384.png",
   "Bristol City": "https://crests.football-data.org/387.png",
   "Wrexham": "https://crests.football-data.org/404.png",
+  "West Ham": "https://crests.football-data.org/563.png",
   "Cardiff": "https://crests.football-data.org/715.png",
-  "Preston": "https://crests.football-data.org/1081.png"
+  "Preston": "https://crests.football-data.org/1081.png",
+  "Lincoln": "https://crests.football-data.org/1126.png"
  },
  "N1": {
   "Twente": "https://crests.football-data.org/666.png",
